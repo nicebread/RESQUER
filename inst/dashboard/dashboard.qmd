@@ -1,0 +1,418 @@
+--- 
+title: "RESQUE Profile"
+format: 
+  dashboard:
+    nav-buttons:
+      - icon: github
+        href: https://github.com/nicebread/RESQUE
+---
+
+<!-- See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
+
+```{r setup}
+library(RESQUER)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(forcats)
+library(wordcloud)
+library(knitr)
+library(openalexR)
+library(tibble)
+library(kableExtra)
+
+applicant <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+
+# Split the research outputs into types, reduce to suitable submissions
+pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
+
+
+# clean the dois:
+dois <- applicant$indicators$doi
+dois <- dois %>% 
+  str_replace_all("doi: ", "") %>% 
+  str_replace_all(" ", "") %>% 
+  str_trim()
+
+applicant$indicators$doi_links <- paste0("https://doi.org/", dois)
+applicant$indicators$doi_links_md <- paste0("[", applicant$indicators$doi_links, "](", applicant$indicators$doi_links, ")")
+
+applicant$indicators$title_links_html <- paste0("<a href='", applicant$indicators$doi_links, "'>", applicant$indicators$Title, "</a>")
+
+
+applicant$indicators$P_TopPaper_Select[is.na(applicant$indicators$P_TopPaper_Select)] <- FALSE
+
+# CRediT preprocessing
+#--------------------------------------------------------
+
+# pull elements from the "applicant" object into separate objects
+credit <- applicant$credit
+scores <- applicant$scores
+
+
+credit_tab <- table(credit$Role, credit$Degree)
+
+# arrange credit roles by weight (Lead > Support > Equal), summed across works
+ct_ordered <- as.data.frame.matrix(credit_tab) %>%
+    mutate(
+        LeadEqual = Lead + Equal,
+        Sum = Lead + Equal + Support + NoRole,
+        # normalized weight: All "Lead" (=max) would be 1
+        weight = (Lead * 4 + Equal * 3 + Support * 1) / (Sum * 4),
+        Role = rownames(.)
+    ) %>%
+    arrange(-LeadEqual, -Support)
+
+credit$Role <- factor(credit$Role, levels = rev(rownames(ct_ordered)))
+
+# The "CRediT involvement" categories
+# ---------------------------------------------------------------------
+# TODO: Refactor into function
+
+credit_inv <- applicant$indicators %>% select(contains("CRediT"))
+roles <- colnames(credit_inv) |> str_replace("P_CRediT_", "") |> unCamel0()
+roles[roles == "Writing Review Editing"] <- "Writing: Review & Editing"
+roles[roles == "Writing Original Draft"]  <- "Writing: Original draft"
+
+main_roles <- rep("", nrow(credit_inv))
+for (i in 1:nrow(credit_inv)) {
+  leads <- credit_inv[i, ] == "Lead"
+  equals <- credit_inv[i, ] == "Equal"
+  main_roles[i] <- paste0(
+    ifelse(sum(leads)>0, paste0(
+      "<b>Lead:</b> ",
+      paste0(roles[leads], collapse=", ")), ""),
+    ifelse(sum(equals)>0, paste0(
+      "<br><b>Equal:</b> ",
+      paste0(roles[equals], collapse=", ")), "")
+  )
+}
+
+credit_inv$sum_lead <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Lead"))
+credit_inv$sum_equal <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Equal"))
+credit_inv$sum_leadequal <- apply(credit_inv[, 1:14], 1, function(x) sum(x %in% c("Lead", "Equal")))
+credit_inv$sum_support <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Support"))
+
+# define the categories
+credit_inv$CRediT_involvement <- factor(rep("Low", nrow(credit_inv)), levels=c("Low", "Medium", "High", "Very High"), ordered=TRUE)
+credit_inv$CRediT_involvement[credit_inv$sum_lead >= 3] <- "Very High"
+credit_inv$CRediT_involvement[credit_inv$sum_leadequal >= 5] <- "Very High"
+
+credit_inv$CRediT_involvement[credit_inv$sum_lead %in% c(1, 2)] <- "High"
+credit_inv$CRediT_involvement[credit_inv$sum_leadequal %in% c(3, 4) & credit_inv$CRediT_involvement != "Very High"] <- "High"
+
+credit_inv$CRediT_involvement[credit_inv$sum_equal %in% c(1, 2) & credit_inv$sum_lead == 0] <- "Medium"
+credit_inv$CRediT_involvement[credit_inv$sum_support >= 5 & credit_inv$CRediT_involvement <= "Medium"] <- "Medium"
+
+applicant$indicators$CRediT_involvement <- credit_inv$CRediT_involvement
+applicant$indicators$CRediT_involvement_roles <- main_roles
+
+
+
+#----------------------------------------------------------------
+# Call BIP! API for impact measures
+#----------------------------------------------------------------
+
+library(curl)
+
+doi_csv <- paste0(applicant$indicators$dois_normalized, collapse=",") |> URLencode(reserved=TRUE)
+req <- curl_fetch_memory(paste0("https://bip-api.imsi.athenarc.gr/paper/scores/batch/", doi_csv))
+
+BIP <- jsonlite::fromJSON(rawToChar(req$content)) 
+BIP$pop_class <- factor(BIP$pop_class, levels=paste0("C", 1:5), ordered=TRUE)
+BIP$inf_class <- factor(BIP$inf_class, levels=paste0("C", 1:5), ordered=TRUE)
+BIP$imp_class <- factor(BIP$imp_class, levels=paste0("C", 1:5), ordered=TRUE)
+colnames(BIP)[5] <- "three_year_cc"
+
+
+#----------------------------------------------------------------
+# Retrieve submitted works from OpenAlex
+#----------------------------------------------------------------
+
+all_pubs <- applicant$indicators[applicant$indicators$type == "Publication", ]
+
+all_papers <- oa_fetch(entity = "works", doi = all_pubs$doi_links)
+
+#cat(paste0(nrow(all_papers), " out of ", nrow(all_pubs), " submitted publications could be automatically retrieved with openAlex.\n"))
+
+if (nrow(all_papers) < nrow(all_pubs)) {
+  cat('\n::: {.callout-caution collapse="true"}\n
+## The following papers could *not* be retrieved by openAlex:\n\n')
+  all_pubs[!all_pubs$doi_links %in% all_papers$doi, ] %>% 
+    select(Title, Year, doi, P_TypePublication) %>% 
+    kable() %>% 
+    print()
+
+  cat("\n:::\n")
+}
+```
+
+
+<!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
+
+<!-- Leading content (displayed above all cards) -->
+This document summarizes the research style of `r applicant$meta$FullName` - the *"fingerprint" of how research is conducted*, when only the best work is submitted to this analysis.
+
+
+# Submitted works {orientation="columns"}
+
+## Column1 {width=30%}
+
+::: {.card title="Type of method"}
+```{r types_of_papers}
+dat_tM <- applicant$indicators %>% select(contains("P_TypeMethod"))
+
+# add missing columns
+expected_columns<- c(
+  P_TypeMethod_Empirical = FALSE,
+  P_TypeMethod_MetaAnalysis = FALSE, 
+  P_TypeMethod_Theoretical = FALSE, 
+  P_TypeMethod_Simulation = FALSE,
+  P_TypeMethod_OtherMethod = FALSE
+)
+# adding those columns to df1
+dat_tM <- add_column(dat_tM, !!!expected_columns[setdiff(names(expected_columns), names(dat_tM))])
+
+# remove the free text field for this table
+dat_tM$P_TypeMethod_Other <- NULL
+
+dat_tM_tab <- pivot_longer(dat_tM, everything()) %>% 
+  group_by(name) %>% 
+  summarise(paper_count=sum(value, na.rm=TRUE))
+
+dat_tM_tab$name <- str_replace(dat_tM_tab$name, "P_TypeMethod_", "")
+dat_tM_tab <- unCamel(df=dat_tM_tab, cname="name")
+
+colnames(dat_tM_tab) <- c("Type of method", "# papers")
+kable(dat_tM_tab)
+```
+:::
+
+
+::: {.card title="Type of collaboration"}
+```{r team_science}
+#| results: "asis"
+
+all_papers$n_authors <- sapply(all_papers$author, nrow)
+
+all_papers$team_category <- cut(all_papers$n_authors, breaks=c(0, 1, 5, 15, Inf), labels=c("Single authored", "Small team (<= 5 co-authors)", "Large team (6-15 co-authors)", "Big Team (> 15 co-authors)"))
+
+team_tab <- table(all_papers$team_category) |> as.data.frame()
+team_tab$perc <- paste0(round(team_tab$Freq*100 / nrow(all_papers)), "%")
+colnames(team_tab) <- c("Team category", "Frequency", "%")
+kable(team_tab, align=c("l", "r", "r"))
+```
+:::
+
+## Column2 {width=70%}
+
+::: {.card title="Submitted works"}
+**Note:**
+
+- Author order has been re-arranged to be alphabetical. 
+- Journal names have been removed.
+- Please infer the author's contributions from the CRediT taxonomy
+- ⭐️ = selected as one of the best works.
+
+**Submitted works:**
+
+::: {style="font-size: 80%;"}
+```{r}
+#| results: "asis"
+
+ref_list <- left_join(all_papers, applicant$indicators %>% select(doi=doi_links, CRediT_involvement, CRediT_involvement_roles, title_links_html, P_TopPaper_Select), by="doi") %>% 
+  arrange(-P_TopPaper_Select, rev(CRediT_involvement))
+
+names_vec <- c()
+for (i in 1:nrow(ref_list)) {
+  names_vec <- c(names_vec, format_names(ref_list[i, ], alphabetical = TRUE))
+}
+
+ref_table <- data.frame(
+  Title=paste0(ifelse(ref_list$P_TopPaper_Select, "⭐️", ""), ref_list$title_links_html),
+  Authors = names_vec,
+  ref_list$CRediT_involvement,
+  ref_list$CRediT_involvement_roles
+)
+
+colnames(ref_table) <- c("Title", "Authors", "Candidates' CRediT involvement", "Candidates' CRediT main roles")
+
+kable(ref_table, format = "html", escape = FALSE)
+```
+:::
+
+:::
+
+
+
+# Author contributions
+
+## Row {height=30%}
+
+```{r}
+#| content: valuebox
+#| title: "Research outputs provided:"
+#| icon: pencil
+#| color: primary
+list(
+  value = 8
+)
+```
+
+
+
+
+## Row {height=70%}
+
+### Column {.tabset}
+
+```{r credit_barchart, out.width="100%", fig.width = 8, fig.height = 5}
+#| title: CRediT Barchart
+
+ggplot(credit, aes(x = Role, fill = Degree)) +
+    geom_bar(stat = "count") +
+    coord_flip() +
+    scale_fill_manual(values = rev(c("grey90", "indianred1", "khaki2", "green3", "green4")), breaks = rev(c("not applicable", "NoRole", "Support", "Equal", "Lead"))) +
+    theme_minimal() + xlab("") + ylab("# of publications") + 
+    theme(axis.text.y = element_text(size = 14)) + 
+    # force whole integers on x-axis
+    scale_y_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1))
+
+```
+
+```{r credit_wordcloud}
+#| title: CRediT Word Cloud
+if (any(ct_ordered$weight > 0)) {
+  wordcloud(ct_ordered$Role, freq = ct_ordered$weight, scale = c(2, .1), min.freq = 0.4, random.order = FALSE)  
+}
+```
+
+
+### Column
+
+Test
+
+
+
+# Impact {orientation="columns"}
+
+## Column1 {width=30%}
+
+::: {.card title="Research impact: Highly popular publications"}
+
+[BIP! Scholar](https://bip.imsi.athenarc.gr/site/home) (a non-commercial open-source service to facilitate fair researcher assessment) provides impact scores for publications. It provides **five impact classes** based on norm values:
+
+::: {style="font-size: 80%;"}
+- Top 0.01%           
+- Top 0.1%            
+- Top 1%              
+- Top 10%             
+- Average (Bottom 90%)
+:::
+
+
+Here, we consider the **Popularity** measure. From `r nrow(applicant$indicators)` submitted papers of `r applicant$meta$FullName`, `r nrow(BIP %>% filter(pop_class <= "C4"))` `r ifelse(nrow(BIP %>% filter(pop_class <= "C4")) == 1, "was", "were")` in the top 10% popularity class of all papers or better.
+
+::: {.callout-note title="Computation of the Popularity metric" collapse="true"}
+This indicator reflects impact/attention of an article in the research community at large. It is based on *AttRank*, a variation of PageRank (known from the Google search algorithm) that accounts for the temporal evolution of the citation network. By that, it alleviates the bias against younger publications, which have not had the chance to accumulate a lot of citations. It models a researcher's preference to read papers which received a lot of attention recently. It was evaluated (and vetted) in its performance to predict the ranking of papers concerning their *future impact* (i.e., citations). For more details, see [BIP! glossary](https://bip.imsi.athenarc.gr/site/indicators) and the references therein.
+:::
+
+:::
+
+
+## Column2 {width=70%}
+
+::: {.card title="Highly popular papers"}
+::: {style="font-size: 80%;"}
+```{r}
+#| results: "asis"
+#| fill: false
+
+pop_sel <- BIP %>% 
+  filter(pop_class <= "C4") %>% 
+  arrange(pop_class, -three_year_cc) %>% 
+  select(doi, three_year_cc, cc,	pop_class)
+
+pop_sel$Label <- factor(pop_sel$pop_class, levels=paste0("C", 1:5), labels=c("Top 0.01%", "Top 0.1%", "Top 1%", "Top 10%", "Average (Bottom 90%)"))
+pop_sel$pop_class <- NULL
+
+pop_sel <- left_join(pop_sel, applicant$indicators %>% select(doi=dois_normalized, Title, CRediT_involvement, CRediT_involvement_roles), by="doi") %>% 
+  relocate(Title)
+
+colnames(pop_sel) <- c("Title", "doi", "3 year citation count", "Overall citation count", "Popularity", "Candidates' CRediT involvement", "Candidates' CRediT main roles")
+
+pop_sel$doi <- NULL
+
+# add some emojis:
+pop_sel$Title[pop_sel$Popularity == "Top 0.01%"] <- paste0("🚀", pop_sel$Title[pop_sel$Popularity == "Top 0.01%"])
+pop_sel$Title[pop_sel$Popularity == "Top 0.1%"] <- paste0("️🌟", pop_sel$Title[pop_sel$Popularity == "Top 0.1%"])
+pop_sel$Title[pop_sel$Popularity == "Top 1%"] <- paste0("️✨", pop_sel$Title[pop_sel$Popularity == "Top 1%"])
+
+if (nrow(pop_sel) > 0) {
+  kable(pop_sel, format = "html", escape = FALSE) %>%
+    kable_styling(font_size = 6)
+} else {
+}
+```
+:::
+:::
+
+# Open Science {orientation="columns"}
+
+## Column1 {width=33%}
+
+
+::: {.card title="Was the research preregistered / a registered report?"}
+```{r}
+#| fig-width: 10
+#| fig-height: 4
+
+pubs$P_Preregistration2 <- factor(pubs$P_Preregistration, levels=c("NotApplicable", "No", "Yes", "RegisteredReport"), labels=c("Not<br>Applicable", "Not<br>prereg", "Prereg", "Registered<br>Report"))
+
+prereg_tab <- table(pubs$P_Preregistration2) |> as.data.frame() %>%
+  mutate(perc = round(Freq*100/sum(Freq)))
+
+# give missing categories a minimal width to make them visible
+#prereg_tab$perc[prereg_tab$perc == 0] <- 0.2
+
+
+BC_h(
+  cat_labels=prereg_tab$Var1,
+  values=prereg_tab$Freq,
+  colors=c("#eeeeee", "#FED976", "#90c916", "#008000"), rev=TRUE)
+```
+:::
+
+
+::: {.card title="Preregistered replication attempt"}
+```{r}
+#| fig-width: 10
+#| fig-height: 4
+
+if (!is.null(pubs$P_PreregisteredReplication)) {
+
+pubs$replication <- factor(pubs$P_PreregisteredReplication, levels=c("NotApplicable", "No", "Yes"), labels=c("not<br>applicable", "No", "Yes"))
+
+# fix some logical dependencies
+pubs$replication[is.na(pubs$replication) & pubs$P_Preregistration2 == "Not preregistered"] <- "No"
+
+repl_tab <- table(pubs$replication) |> as.data.frame() %>%
+  mutate(perc = round(Freq*100/sum(Freq))) %>% 
+  filter(perc > 0)
+
+BC_h(
+  cat_labels=repl_tab$Var1,
+  values=repl_tab$Freq,
+  colors=c("#eeeeee", "#FED976", "#90c916"))
+}
+
+
+```
+:::
+
+
+## Column2 {width=33%}
+
+## Column3 {width=33%}

@@ -1,0 +1,668 @@
+---
+title: "Exemplary RESQUE Profile"
+embed-resources: true
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{RESQUE_profile}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo=FALSE,
+  message=FALSE,
+  warning=FALSE,
+  out.width="100%"
+)
+```
+
+```{r setup}
+library(RESQUER)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(forcats)
+library(wordcloud)
+library(knitr)
+library(openalexR)
+library(tibble)
+```
+
+
+```{r}
+
+#applicant <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+applicant <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
+
+# Split the research outputs into types, reduce to suitable submissions
+pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
+
+# pull elements from the "applicant" object into separate objects
+credit <- applicant$credit
+scores <- applicant$scores
+
+
+credit_tab <- table(credit$Role, credit$Degree)
+
+# arrange credit roles by weight (Lead > Support > Equal), summed across works
+ct_ordered <- as.data.frame.matrix(credit_tab) %>%
+    mutate(
+        LeadEqual = Lead + Equal,
+        Sum = Lead + Equal + Support + NoRole,
+        # normalized weight: All "Lead" (=max) would be 1
+        weight = (Lead * 4 + Equal * 3 + Support * 1) / (Sum * 4),
+        Role = rownames(.)
+    ) %>%
+    arrange(-LeadEqual, -Support)
+
+credit$Role <- factor(credit$Role, levels = rev(rownames(ct_ordered)))
+
+# The "CRediT involvement" categories
+# ---------------------------------------------------------------------
+# TODO: Refactor into function
+
+credit_inv <- applicant$indicators %>% select(contains("CRediT"))
+roles <- colnames(credit_inv) |> str_replace("P_CRediT_", "") |> unCamel0()
+roles[roles == "Writing Review Editing"] <- "Writing: Review & Editing"
+roles[roles == "Writing Original Draft"]  <- "Writing: Original draft"
+
+main_roles <- rep("", nrow(credit_inv))
+for (i in 1:nrow(credit_inv)) {
+  leads <- credit_inv[i, ] == "Lead"
+  equals <- credit_inv[i, ] == "Equal"
+  main_roles[i] <- paste0(
+    ifelse(sum(leads)>0, paste0(
+      "<b>Lead:</b> ",
+      paste0(roles[leads], collapse=", ")), ""),
+    ifelse(sum(equals)>0, paste0(
+      "<br><b>Equal:</b> ",
+      paste0(roles[equals], collapse=", ")), "")
+  )
+}
+
+credit_inv$sum_lead <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Lead"))
+credit_inv$sum_equal <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Equal"))
+credit_inv$sum_leadequal <- apply(credit_inv[, 1:14], 1, function(x) sum(x %in% c("Lead", "Equal")))
+credit_inv$sum_support <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Support"))
+
+# define the categories
+credit_inv$CRediT_involvement <- factor(rep("Low", nrow(credit_inv)), levels=c("Low", "Medium", "High", "Very High"), ordered=TRUE)
+credit_inv$CRediT_involvement[credit_inv$sum_lead >= 3] <- "Very High"
+credit_inv$CRediT_involvement[credit_inv$sum_leadequal >= 5] <- "Very High"
+
+credit_inv$CRediT_involvement[credit_inv$sum_lead %in% c(1, 2)] <- "High"
+credit_inv$CRediT_involvement[credit_inv$sum_leadequal %in% c(3, 4) & credit_inv$CRediT_involvement != "Very High"] <- "High"
+
+credit_inv$CRediT_involvement[credit_inv$sum_equal %in% c(1, 2) & credit_inv$sum_lead == 0] <- "Medium"
+credit_inv$CRediT_involvement[credit_inv$sum_support >= 5 & credit_inv$CRediT_involvement <= "Medium"] <- "Medium"
+
+applicant$indicators$CRediT_involvement <- credit_inv$CRediT_involvement
+applicant$indicators$CRediT_involvement_roles <- main_roles
+
+```
+**This document summarizes the research style of `r applicant$meta$FullName` - the *"fingerprint" of how research is conducted*, when only the best work is submitted to this analysis.**
+
+
+::: {.callout-warning}
+This is a preview which shows some visual summaries - not all indicators have been covered yet, and things might change substantially.
+:::
+
+
+Some parts of this profile are purely descriptive. For example, it is summarized whether researchers focus on lab or field studies, whether they predominantly work with psychophysiological data or rather focus on questionnaire studies. 
+
+Other parts contain, to some extent, a normative aspect: For example, research that is reproducible, which allows independent auditing because it provides open data and scripts is, *ceteris paribus*, better than research that does not have these aspects. Research outputs with these objective quality criteria of methodological rigor can gain "bonus points" which are summed across all provided research outputs and contribute to the [Rigor Profile Overview](#rigor-profile-overview).
+
+::: {.callout-note title="Is the rigor score systematically biased against certain fields (e.g., fields where open data is difficult)?" collapse="true"}
+We took care not to systematically disadvantage certain fields or research styles. Generally, the rigor score is a relative score, computed as “percentage of maximal points” (POMP) score across all indicators that are applicable. For any indicator, one can choose the option "not applicable" if an indicator *principally* cannot be attained by a research output. The points of such non-applicable indicators are removed from the maximum points and therefore do not lower the computed relative rigor score. However, in order to prevent gaming of this scheme, any "not applicable" claim needs to be justified. Only when the justification is accepted by the committee, the point is removed. With no or insufficient justification, in contrast, the indicator is set to "not available" (=0 points) and the maximum points are not adjusted.
+:::
+
+## Submitted research outputs
+
+`r nrow(applicant$indicators)` research outputs have been submitted. The following table shows the types of submitted outputs, and whether they have been flagged as suitable for the rating sheet (*yes*) or not (*no*).
+
+```{r}
+kable(table(applicant$indicators$type, applicant$indicators$P_Suitable))
+```
+
+
+The `r nrow(applicant$indicators[applicant$indicators$type == "Publication", ])` publications had the following types:
+
+```{r}
+kable(table(applicant$indicators[applicant$indicators$type == "Publication", "P_TypePublication"]))
+```
+
+And the following methodological type:
+
+```{r}
+dat_tM <- applicant$indicators %>% select(contains("P_TypeMethod"))
+
+# add missing columns
+expected_columns<- c(
+  P_TypeMethod_Empirical = FALSE,
+  P_TypeMethod_MetaAnalysis = FALSE, 
+  P_TypeMethod_Theoretical = FALSE, 
+  P_TypeMethod_Simulation = FALSE,
+  P_TypeMethod_OtherMethod = FALSE
+)
+# adding those columns to df1
+dat_tM <- add_column(dat_tM, !!!expected_columns[setdiff(names(expected_columns), names(dat_tM))])
+
+# remove the free text field for this table
+dat_tM$P_TypeMethod_Other <- NULL
+
+dat_tM_tab <- pivot_longer(dat_tM, everything()) %>% 
+  group_by(name) %>% 
+  summarise(paper_count=sum(value, na.rm=TRUE))
+
+dat_tM_tab$name <- str_replace(dat_tM_tab$name, "P_TypeMethod_", "")
+dat_tM_tab <- unCamel(df=dat_tM_tab, cname="name")
+
+colnames(dat_tM_tab) <- c("Type of method", "# papers")
+kable(dat_tM_tab)
+```
+
+
+### Team science in publications?
+
+```{r}
+#| results: "asis"
+
+all_pubs <- applicant$indicators[applicant$indicators$type == "Publication", ]
+
+# clean the dois:
+dois <- all_pubs$DOI
+dois <- dois %>% 
+  str_replace_all("doi: ", "") %>% 
+  str_replace_all(" ", "") %>% 
+  str_trim()
+
+all_pubs$doi_links <- paste0("https://doi.org/", all_pubs$dois_normalized)
+all_pubs$doi <- paste0("[", all_pubs$doi_links, "](", all_pubs$doi_links, ")")
+
+all_papers <- oa_fetch(entity = "works", doi = all_pubs$doi_links)
+
+cat(paste0(nrow(all_papers), " out of ", nrow(all_pubs), " submitted publications could be automatically retrieved with openAlex.\n"))
+
+if (nrow(all_papers) < nrow(all_pubs)) {
+  cat('\n::: {.callout-caution collapse="true"}\n
+## The following papers could *not* be retrieved by openAlex:\n\n')
+  all_pubs[!all_pubs$doi_links %in% all_papers$doi, ] %>% 
+    select(Title, Year, doi, P_TypePublication) %>% 
+    kable() %>% 
+    print()
+
+  cat("\n:::\n")
+}
+
+all_papers$n_authors <- sapply(all_papers$author, nrow)
+
+all_papers$team_category <- cut(all_papers$n_authors, breaks=c(0, 1, 5, 15, Inf), labels=c("Single authored", "Small team (<= 5 co-authors)", "Large team (6-15 co-authors)", "Big Team (> 15 co-authors)"))
+
+team_tab <- table(all_papers$team_category) |> as.data.frame()
+team_tab$perc <- paste0(round(team_tab$Freq*100 / nrow(all_papers)), "%")
+colnames(team_tab) <- c("Team category", "Frequency", "%")
+```
+
+```{r}
+kable(team_tab, align=c("l", "r", "r"))
+```
+
+## Contributorship profile (CRediT roles)
+
+Based on `r nrow(applicant$indicators)` submitted publications, this is the self-reported contributorship profile:
+
+```{r, out.width="100%", fig.width = 8, fig.height = 5}
+ggplot(credit, aes(x = Role, fill = Degree)) +
+    geom_bar(stat = "count") +
+    coord_flip() +
+    scale_fill_manual(values = rev(c("grey90", "indianred1", "khaki2", "green3", "green4")), breaks = rev(c("not applicable", "NoRole", "Support", "Equal", "Lead"))) +
+    theme_minimal() + xlab("") + ylab("# of publications") + 
+    theme(axis.text.y = element_text(size = 14)) + 
+    # force whole integers on x-axis
+    scale_y_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1))
+
+```
+
+
+```{r}
+if (any(ct_ordered$weight > 0)) {
+  wordcloud(ct_ordered$Role, freq = ct_ordered$weight, scale = c(2, .1), min.freq = 0.4, random.order = FALSE)  
+}
+```
+
+
+We categorized papers into levels of involvement, based on the degrees of contributorship:
+
+```{r}
+
+credit_inv_tab <- data.frame(
+  "Involvement Level" = c("Very High", "High", "Medium", "Low"),
+  "Definition" = c(
+    "(>=3 roles as *lead*) OR (>= 5 roles as (*lead* OR *equal*))",
+    "(1-2 roles as *lead*) OR (3-4 roles as *equal*)",
+    "(1-2 roles as *equal*) OR (>= 5 roles as *support*)",
+    "All other combinations"
+  )
+)
+
+t1 <- table(applicant$indicators$CRediT_involvement) %>% as.data.frame() 
+
+# this is an ugly way of merging ...
+credit_inv_tab$Publications <- 0
+credit_inv_tab$Publications[1] <- t1[t1$Var1 == "Very High", 2]
+credit_inv_tab$Publications[2] <- t1[t1$Var1 == "High", 2]
+credit_inv_tab$Publications[3] <- t1[t1$Var1 == "Medium", 2]
+
+
+kable(credit_inv_tab)
+```
+
+
+# Research impact: Highly popular publications
+
+
+[BIP! Scholar](https://bip.imsi.athenarc.gr/site/home) (a non-commercial open-source service to facilitate fair researcher assessment) provides impact scores for publications. It provides **five impact classes** based on norm values:
+
+::: {style="font-size: 80%;"}
+- Top 0.01%           
+- Top 0.1%            
+- Top 1%              
+- Top 10%             
+- Average (Bottom 90%)
+:::
+
+
+Here, we consider the **Popularity** measure.
+
+::: {.callout-note title="Computation of the Popularity metric" collapse="true"}
+This indicator reflects impact/attention of an article in the research community at large. It is based on *AttRank*, a variation of PageRank (known from the Google search algorithm) that accounts for the temporal evolution of the citation network. By that, it alleviates the bias against younger publications, which have not had the chance to accumulate a lot of citations. It models a researcher's preference to read papers which received a lot of attention recently. It was evaluated (and vetted) in its performance to predict the ranking of papers concerning their *future impact* (i.e., citations). For more details, see [BIP! glossary](https://bip.imsi.athenarc.gr/site/indicators) and the references therein.
+:::
+
+```{r}
+# Call BIP! API
+
+library(curl)
+
+doi_csv <- paste0(applicant$indicators$dois_normalized, collapse=",") |> URLencode(reserved=TRUE)
+req <- curl_fetch_memory(paste0("https://bip-api.imsi.athenarc.gr/paper/scores/batch/", doi_csv))
+
+BIP <- jsonlite::fromJSON(rawToChar(req$content)) 
+BIP$pop_class <- factor(BIP$pop_class, levels=paste0("C", 1:5), ordered=TRUE)
+BIP$inf_class <- factor(BIP$inf_class, levels=paste0("C", 1:5), ordered=TRUE)
+BIP$imp_class <- factor(BIP$imp_class, levels=paste0("C", 1:5), ordered=TRUE)
+```
+From `r nrow(applicant$indicators)` submitted papers of `r applicant$meta$FullName`, `r nrow(BIP %>% filter(pop_class <= "C4"))` `r ifelse(nrow(BIP %>% filter(pop_class <= "C4")) == 1, "was", "were")` in the top 10% popularity class of all papers or better.
+
+::: {style="font-size: 80%;"}
+```{r}
+#| results: "asis"
+
+pop_sel <- BIP %>% 
+  filter(pop_class <= "C4") %>% 
+  arrange(pop_class) %>% 
+  select(doi, "3_year_cc", cc,	pop_class)
+
+pop_sel$Label <- factor(pop_sel$pop_class, levels=paste0("C", 1:5), labels=c("Top 0.01%", "Top 0.1%", "Top 1%", "Top 10%", "Average (Bottom 90%)"))
+pop_sel$pop_class <- NULL
+
+pop_sel <- left_join(pop_sel, applicant$indicators %>% select(doi=dois_normalized, Title, CRediT_involvement, CRediT_involvement_roles), by="doi") %>% 
+  relocate(Title)
+
+colnames(pop_sel) <- c("Title", "doi", "3 year citation count", "Overall citation count", "Popularity", "Candidates' CRediT involvement", "Candidates' CRediT main roles")
+
+pop_sel$doi <- NULL
+
+# add some emojis:
+pop_sel$Title[pop_sel$Popularity == "Top 0.01%"] <- paste0("🚀", pop_sel$Title[pop_sel$Popularity == "Top 0.01%"])
+pop_sel$Title[pop_sel$Popularity == "Top 0.1%"] <- paste0("️🌟", pop_sel$Title[pop_sel$Popularity == "Top 0.1%"])
+pop_sel$Title[pop_sel$Popularity == "Top 1%"] <- paste0("️✨", pop_sel$Title[pop_sel$Popularity == "Top 1%"])
+
+if (nrow(pop_sel) > 0) {
+  cat("The highly popular papers are: \n\n")
+  kable(pop_sel, format = "html", escape = FALSE)
+} else {
+}
+```
+:::
+
+# Rigor profile overview
+
+::: {.callout-note title="Computation of the relative rigor score" collapse="true"}
+The relative rigor score (RRS) is computed as a “percentage of maximal points” (POMP) score of multiple indicators. The indicators are grouped into five categories: Open Data, Preregistration, Reproducible Code & Verification, Theorizing, and Open Materials. Indicators that are flagged as "not applicable" are removed from the maximum points and therefore do not lower the RRS.
+:::
+
+The grey circles are norm values based on a sample of 63 papers from mostly early and mid-career researchers that submitted their three best papers, indicating the 50%, 90%, and 99% quantile of the relative rigor score.
+
+```{r}
+#| echo: false
+#| include: false
+
+# Which outputs should be scored?
+score_list <- scores$scores[applicant$indicators$P_Suitable == "Yes"]
+n_scorable <- length(score_list)
+
+scores_all <- get_indicators(sc=score_list)
+
+scores_all$category <- NA
+scores_all$category[str_detect(scores_all$indicator, "Data")] <- "Open Data"
+scores_all$category[str_detect(scores_all$indicator, "Prereg")] <- "Preregistration"
+scores_all$category[str_detect(scores_all$indicator, "ReproducibleScripts|IndependentVerification")] <- "Reproducible Code \n& Verification"
+scores_all$category[str_detect(scores_all$indicator, "Theorizing")] <- "Theorizing"
+scores_all$category[str_detect(scores_all$indicator, "OpenMaterials")] <- "Open Materials"
+
+rigor_category_names <- c("Open Data", "Preregistration", "Reproducible Code \n& Verification", "Theorizing", "Open Materials")
+
+scores_all_aggr <- scores_all %>% 
+  group_by(category) %>% 
+  summarise(
+    points = sum(value),
+    overall_points = sum(max),
+    rel_score = mean(rel_score),
+  ) %>% 
+  filter(!is.na(category))
+
+# = mean of the mean scores (with equal weighting of each research output)
+# Note (TODO): In the webform, it's the *weighted*
+overall_mean_rel_score <- scores_all %>% 
+  group_by(output) %>% 
+  summarise(
+    scores = sum(value),
+    max = sum(max),
+    rel_score = scores/max
+  )
+
+# overall rigor score as in webform:
+sum(overall_mean_rel_score$scores)/sum(overall_mean_rel_score$max)
+
+# equally weighted overall score:
+overall_score <- mean(scores_all_aggr$rel_score)
+
+categories_present <- nrow(scores_all_aggr)
+
+radar_dat <- tibble(
+	dimension = factor(scores_all_aggr$category),
+	max_points = scores_all_aggr$overall_points,
+	rel_score = scores_all_aggr$rel_score,
+	#xstart = c(0, cumsum(max_points)[1:(length(max_points)-1)]),
+	#xend = cumsum(max_points),
+	xstart = 0:(categories_present-1),
+	xend = 1:categories_present,
+  xmid = (xend-xstart)/2 + xstart
+)
+
+#radar_applicant$indicators$rel_score <- c(0.15, 0.8, 0.6, 0.25, 0.42)
+
+#Some exemplary radar dats:
+radar_dat <- data.frame(
+  dimension = c("Open Data", "Open Materials", "Preregistration", "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
+  max_points = rep(10, 5),
+  rel_score=c(0.5, 0.3, 0.1, 0.6, 0.2),
+  xstart = 0:4,
+  xend = 1:5,
+  xmid=0:4 + 0.5
+)
+
+
+max_points <- sum(radar_dat$max_points)
+  
+# Standardized and categorized rigor scores:
+# Standarized within category
+# Quantiles in Franka's study were:
+# 0.63 (top 1%), 0.54 (top 10%), 0.50 (top 20%), 0.30 (top 50%)
+# radar_applicant$indicators$norm_rigor <- cut(radar_applicant$indicators$rel_score, breaks=c(0, 0.30, .50, .54, 1), 
+#  labels=c("low50", "top50", "top20", "top10"))
+
+p1 <- radar_dat %>% ggplot() + 
+geom_rect(aes(xmin=xstart, xmax=xend, ymin=0, ymax=rel_score, fill=dimension)) + 
+coord_polar("x", start=0) + 
+  geom_hline(yintercept=0.30, col="grey30") +  # top 50%
+  geom_hline(yintercept=0.54, col="grey50") + # top 10%
+  geom_hline(yintercept=0.63, col="grey70") +  # top  1%
+  geom_text(x=max_points*0, y=0.30, label = "Top 50%", col="grey30", size=3, vjust=-0.2) +
+  geom_text(x=max_points*0, y=0.54, label = "Top 10%", col="grey50", size=3, vjust=-0.2) +
+  geom_text(x=max_points*0, y=0.63, label = "Top 1%" , col="grey50", size=3, vjust=-0.2) +
+  
+xlab("") + ylab("") + ggtitle(paste0("Rigor profile for ", applicant$meta$FullName), subtitle = paste0("Overall score = ", round(overall_score, 2))) +
+scale_x_continuous(labels = NULL, breaks = NULL) + scale_y_continuous(labels = NULL, breaks = NULL, limits=c(0, 1)) + theme_void() +
+guides(fill=guide_legend("Rigor Dimension")) +
+scale_fill_brewer(palette="Set3") +
+geom_text(aes(x=xmid, y=0.75, label = dimension), vjust = -0.5, size=3)
+
+p1
+ggsave("~/Downloads/Rigor_profile.tiff", bg="#FFFFFF", dpi="retina")
+
+
+# TODO: add visual guidance lines (geom_hline) at meaningful percentiles
+# TODO: Compute rough norm values (e.g., 5 categories) per category! (Not overall, as it is in the moment)
+```
+
+
+```{r, fig.width=8}
+p1
+```
+
+```{r, results='asis'}
+notApp_categories <- setdiff(rigor_category_names, unique(scores_all$category))
+notApp_categories <- str_replace_all(notApp_categories, "\n", " ")
+
+if (length(notApp_categories) > 0) {
+  
+  cat_label <- ifelse(length(notApp_categories)==1, "category", "categories")
+  cat_label2 <- ifelse(length(notApp_categories)==1, "this category", "these categories")
+  
+  res <- paste0("Note: For the rigor ", cat_label,  " **",  paste0(notApp_categories, collapse=" & "), "**, the applicant has indicated that ", cat_label2, " did not apply to any submitted publication.")
+  cat(res)
+}
+```
+
+
+
+# Open Data in Publications
+
+Out of `r nrow(pubs)` suitable publications, `r sum(pubs$P_Data == "Yes")` had empirical data. These represent the base for the following analyses.
+
+TBD
+
+
+# Reproducibility
+
+## Correctness of computational results has been independently verified
+
+```{r}
+IV <- applicant$indicators %>% 
+  filter(!is.na(P_TypeMethod_Empirical) & P_TypeMethod_Empirical == TRUE)
+
+```
+
+`r nrow(IV)` papers had empirical data. Of these analysis have been independently verified for computational correctness:
+
+```{r}
+#| fig-width: 10
+#| fig-height: 4
+
+IV$IV <- factor(IV$P_IndependentVerification, levels=c("NotApplicable", "No", "WorkflowReproducible", "MainResultsReproducible", "AllResultsReproducible", "AnalysisReplication"), labels=c("not applicable", "No", "Workflow/technical repro", "Main results verified", "All results verified", "Independent Reimplementation"))
+
+IV_tab <- table(IV$IV) |> prop.table() |> as.data.frame() %>%
+  mutate(perc = round(Freq*100)) %>% 
+  filter(perc > 0)
+
+ ggplot(IV_tab, aes(x = "x", y = perc, fill = Var1)) +
+  geom_col(width=0.35) +
+  scale_y_discrete(expand=expand_scale(add = c(10, 10))) +
+  scale_fill_manual(values = rev(c("grey80", "indianred1", "darkseagreen1", "darkolivegreen2", "chartreuse2", "green1")), breaks=rev(c("not applicable", "No", "Workflow/technical repro", "Main results verified", "All results verified", "Independent Reimplementation")), guide=FALSE) +
+  geom_text(aes(label = paste0(gsub(" ", "\n", Var1), ":\n", round(perc), "%")), position = position_stack(vjust = 0.5), size=6) +
+  theme_singlebar() + coord_flip()
+```
+
+
+
+
+# Preregistration
+
+## Was the research preregistered / a registered report?
+```{r}
+#| fig-width: 10
+#| fig-height: 4
+
+pubs$P_Preregistration2 <- factor(pubs$P_Preregistration, levels=c("NotApplicable", "No", "Yes", "RegisteredReport"), labels=c("Not Applicable", "Not preregistered", "Pre- registration", "Registered Report"))
+
+prereg_tab <- table(pubs$P_Preregistration2) |> as.data.frame() %>%
+  mutate(perc = round(Freq*100/sum(Freq)))
+
+# give missing categories a minimal width to make them visible
+prereg_tab$perc[prereg_tab$perc == 0] <- 0.2
+
+ ggplot(prereg_tab, aes(x = "x", y = perc, fill = Var1)) +
+  ggtitle(paste0("n=", nrow(pubs), " publications")) +
+  geom_col(width=0.35) +
+  scale_y_discrete(expand=expand_scale(add = c(10, 10))) +
+  scale_fill_manual(values = rev(c("grey80", "#FED976", "#90c916", "green4")), breaks=rev(c("Not Applicable", "Not preregistered", "Pre- registration", "Registered Report")), guide=FALSE) +
+  geom_text(aes(label = paste0(gsub(" ", "\n", Var1), ":\nn=", Freq, "\n(", round(perc), "%)")), position = position_stack(vjust = 0.5), size=6) +
+  theme_singlebar() + coord_flip()
+
+```
+
+## Replication: The publication contained a preregistered replication attempt (either direct/close or conceptual)
+```{r}
+#| fig-width: 10
+#| fig-height: 4
+
+if (!is.null(pubs$P_PreregisteredReplication)) {
+
+pubs$replication <- factor(pubs$P_PreregisteredReplication, levels=c("NotApplicable", "No", "Yes"), labels=c("not applicable", "No", "Yes"))
+
+# fix some logical dependencies
+pubs$replication[is.na(pubs$replication) & pubs$P_Preregistration2 == "Not preregistered"] <- "No"
+
+repl_tab <- table(pubs$replication) |> as.data.frame() %>%
+  mutate(perc = round(Freq*100/sum(Freq))) %>% 
+  filter(perc > 0)
+
+ ggplot(repl_tab, aes(x = "x", y = perc, fill = Var1)) +
+  ggtitle(paste0("n=", nrow(pubs), " publications")) +
+  geom_col(width=0.35) +
+  scale_y_discrete(expand=expand_scale(add = c(10, 10))) +
+  scale_fill_manual(values = rev(c("#FED976", "#90c916", "grey80")), breaks=rev(c("No", "Yes", "not applicable")), guide=FALSE) +
+  geom_text(aes(label = paste0(gsub(" ", "\n", Var1), ":\nn=", Freq, "\n(", round(perc), "%)")), position = position_stack(vjust = 0.5), size=6) +
+  theme_singlebar() + coord_flip()
+ 
+}
+```
+
+::: {.callout-note title="The following publications contained preregistered replications:" collapse="true"}
+
+```{r}
+kable(pubs %>% 
+  filter(P_PreregisteredReplication == "Yes") %>% 
+  select(TitleLink, Year)
+)
+```
+:::
+
+## What has been preregistered?
+
+```{r}
+prereg_pubs <- pubs[pubs$P_Preregistration %in% c("Yes", "RegisteredReport"), ]
+
+prereg_content <- prereg_pubs %>% select(contains("P_Preregistration_Content"))
+
+# add missing columns
+expected_columns<- c(
+  P_Preregistration_Content_SampleSizePlanning = FALSE,
+  P_Preregistration_Content_Hypotheses = FALSE, 
+  P_Preregistration_Content_Operationalizations = FALSE, 
+  P_Preregistration_Content_AnalysisPlan = FALSE
+
+)
+# adding those columns to df1
+prereg_content <- add_column(prereg_content, !!!expected_columns[setdiff(names(expected_columns), names(prereg_content))])
+
+prereg_content_tab <- pivot_longer(prereg_content, everything()) %>% 
+  group_by(name) %>% 
+  summarise(preregs=sum(value)) %>% 
+  mutate(preregs = preregs/nrow(prereg_content))
+
+prereg_content_tab$name <- str_replace(prereg_content_tab$name, "P_Preregistration_Content_", "")
+prereg_content_tab <- unCamel(prereg_content_tab, "name")
+```
+
+`r nrow(prereg_pubs)` of `r nrow(pubs)` eligible publications had preregistrations. The following components have been preregistered (relative to `r nrow(prereg_pubs)` preregistrations):
+
+```{r}
+# TODO: Print percentages for y axis, remove legend
+ggplot(prereg_content_tab, aes(x=name, y=preregs, fill=name)) + geom_bar(stat="identity") + coord_flip()
+```
+
+
+
+# "Not applicable" justifications
+
+Choosing "not applicable" indicates that an indicator *principally* cannot be attained by a research output. To avoid bias against certain research fields, the points of such non-applicable indicators are removed from the maximum points and therefore do not lower the computed relative rigor score. However, in order to prevent gaming of this scheme, any "not applicable" claim needs to be justified. Only when the justification is accepted by the committee, the point is removed. With no or insufficent justification, in contrast, the indicator is set to "not available" (=0 points) and the maximum points are not adjusted.
+
+
+```{r, results='asis'}
+
+# cols with "NotApplicable"
+cols_with_NotApplicable <- apply(applicant$indicators, 2, function(col) any(col == "NotApplicable")) |> na.omit()
+colnames_with_NotApplicable <- names(cols_with_NotApplicable)[cols_with_NotApplicable == TRUE]
+
+if (length(colnames_with_NotApplicable) > 0) {
+  cat("These are all claims of non-applicability from this applicant:\n\n")
+  
+  for (i in colnames_with_NotApplicable) {
+    # add corresponding explanation
+    cat(paste0("### ", i, "\n\n"))
+    
+    NotAppl <- applicant$indicators[applicant$indicators[, i] == "NotApplicable", c("Title", "Year", "DOI", i, paste0(i, "_NAExplanation"))]
+    NotAppl <- NotAppl[!is.na(NotAppl[, i]), ]
+    rownames(NotAppl) <- NULL
+    
+    NotAppl$Title <- paste0("[", NotAppl$Title, "](", NotAppl$DOI, ")")
+    NotAppl$DOI <- NULL
+    
+    # beware: within for-loops, kable() needs an explicit `print`
+    print(kable(NotAppl))
+  }
+} else {
+  cat("**The applicant had no claims of non-applicability.**\n\n")
+}
+```
+
+```{r, results='asis'}
+# Two extra explanations: 
+# (1) P_Suitable_Explanation 
+# --> general opt-out of this research output
+# (2) P_Data_Open_AccessLevel_ZK2Explanation
+# --> Justification for restricted access (ZK2)
+
+if (all(c("P_Suitable", "P_Suitable_Explanation") %in% colnames(applicant$indicators))) {
+  P_Suitable_tab <- applicant$indicators %>% 
+    select(Title0=Title, Year, DOI, P_Suitable, P_Suitable_Explanation)
+    
+  P_Suitable_tab$Title <- paste0("[", P_Suitable_tab$Title, "](", P_Suitable_tab$DOI, ")")
+
+  P_Suitable_tab <- P_Suitable_tab %>% 
+    filter(P_Suitable == "No") %>% 
+    select(Title, Year, P_Suitable, P_Suitable_Explanation)
+
+  cat("### 'This output is generally not suitable for the assessment scheme'\n")
+  kable(P_Suitable_tab)
+}
+
+if (all(c("P_Data_Open_AccessLevel", "P_Data_Open_AccessLevel_ZK2Explanation") %in% colnames(applicant$indicators))) {
+  # TODO: Show table
+  applicant$indicators[, c("P_Data_Open_AccessLevel", "P_Data_Open_AccessLevel_ZK2Explanation")]
+
+  cat("\n\n### Justification for open data access level >= 2")
+  #kable(P_Suitable_tab)
+
+  print("WARNING: Not implemented yet")
+}
+
+```
+
