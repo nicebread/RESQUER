@@ -47,3 +47,11 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+.Rproj.user
+
+_test
+docs
+inst/doc
+
+inst/dashboard/dashboard_files
+
