@@ -54,4 +54,6 @@ docs
 inst/doc
 
 inst/dashboard/dashboard_files
+inst/dashboard/dashtest_files
+inst/dashboard/dashshiny_files
 

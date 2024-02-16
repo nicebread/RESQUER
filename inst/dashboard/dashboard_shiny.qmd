@@ -1,0 +1,231 @@
+--- 
+title: "RESQUE Profile"
+format: 
+  dashboard:
+    theme: 
+      - lumen
+      - custom.scss
+    nav-buttons:
+      - icon: github
+        href: https://github.com/nicebread/RESQUE
+server: shiny
+---
+
+<!-- See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
+
+```{r setup}
+library(RESQUER)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(forcats)
+library(wordcloud)
+library(knitr)
+library(openalexR)
+library(tibble)
+library(kableExtra)
+
+# TODO: Read all files in folder; let users select the folder via dialog box
+  applicant_list <- list()
+    #incProgress(1/3, detail = paste("Reading json ", 1, "/3"))
+    applicant_list[[1]] <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+    applicant_list[[2]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
+    applicant_list[[3]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1697454489129.json")
+```
+
+<!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
+
+# {.toolbar}
+
+```{r}
+selectInput('applicant_name', 'Name of applicant', c("Felix"=1, "Anne"=2, "Daniel"=3))
+```
+
+
+<!-- Leading content (displayed above all cards) -->
+```{r}
+#| context: server
+appl_selected <- reactive({
+  input$applicant_name
+})
+
+```
+
+
+```{r preprocess}
+#| context: server
+
+
+print(appl_selected())
+
+applicant <- appl_selected <- reactive({
+  applicant_list[[input$applicant_name]]
+  print("Applicant changed!")
+})
+
+# Split the research outputs into types, reduce to suitable submissions
+pubs <- applicant()$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
+
+
+# clean the dois:
+dois <- applicant()$indicators$doi
+dois <- dois %>% 
+  str_replace_all("doi: ", "") %>% 
+  str_replace_all(" ", "") %>% 
+  str_trim()
+
+applicant()$indicators$doi_links <- paste0("https://doi.org/", dois)
+applicant()$indicators$doi_links_md <- paste0("[", applicant()$indicators$doi_links, "](", applicant()$indicators$doi_links, ")")
+
+applicant()$indicators$title_links_html <- paste0("<a href='", applicant()$indicators$doi_links, "'>", applicant()$indicators$Title, "</a>")
+
+
+applicant()$indicators$P_TopPaper_Select[is.na(applicant()$indicators$P_TopPaper_Select)] <- FALSE
+
+# CRediT preprocessing
+#--------------------------------------------------------
+
+# pull elements from the "applicant" object into separate objects
+credit <- applicant()$credit
+scores <- applicant()$scores
+
+
+credit_tab <- table(credit$Role, credit$Degree)
+
+# arrange credit roles by weight (Lead > Support > Equal), summed across works
+ct_ordered <- as.data.frame.matrix(credit_tab) %>%
+    mutate(
+        LeadEqual = Lead + Equal,
+        Sum = Lead + Equal + Support + NoRole,
+        # normalized weight: All "Lead" (=max) would be 1
+        weight = (Lead * 4 + Equal * 3 + Support * 1) / (Sum * 4),
+        Role = rownames(.)
+    ) %>%
+    arrange(-LeadEqual, -Support)
+
+credit$Role <- factor(credit$Role, levels = rev(rownames(ct_ordered)))
+
+# The "CRediT involvement" categories
+# ---------------------------------------------------------------------
+# TODO: Refactor into function
+
+credit_inv <- applicant()$indicators %>% select(contains("CRediT"))
+roles <- colnames(credit_inv) |> str_replace("P_CRediT_", "") |> unCamel0()
+roles[roles == "Writing Review Editing"] <- "Writing: Review & Editing"
+roles[roles == "Writing Original Draft"]  <- "Writing: Original draft"
+
+main_roles <- rep("", nrow(credit_inv))
+for (i in 1:nrow(credit_inv)) {
+  leads <- credit_inv[i, ] == "Lead"
+  equals <- credit_inv[i, ] == "Equal"
+  main_roles[i] <- paste0(
+    ifelse(sum(leads)>0, paste0(
+      "<b>Lead:</b> ",
+      paste0(roles[leads], collapse=", ")), ""),
+    ifelse(sum(equals)>0, paste0(
+      "<br><b>Equal:</b> ",
+      paste0(roles[equals], collapse=", ")), "")
+  )
+}
+
+credit_inv$sum_lead <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Lead"))
+credit_inv$sum_equal <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Equal"))
+credit_inv$sum_leadequal <- apply(credit_inv[, 1:14], 1, function(x) sum(x %in% c("Lead", "Equal")))
+credit_inv$sum_support <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Support"))
+
+# define the categories
+credit_inv$CRediT_involvement <- factor(rep("Low", nrow(credit_inv)), levels=c("Low", "Medium", "High", "Very High"), ordered=TRUE)
+credit_inv$CRediT_involvement[credit_inv$sum_lead >= 3] <- "Very High"
+credit_inv$CRediT_involvement[credit_inv$sum_leadequal >= 5] <- "Very High"
+
+credit_inv$CRediT_involvement[credit_inv$sum_lead %in% c(1, 2)] <- "High"
+credit_inv$CRediT_involvement[credit_inv$sum_leadequal %in% c(3, 4) & credit_inv$CRediT_involvement != "Very High"] <- "High"
+
+credit_inv$CRediT_involvement[credit_inv$sum_equal %in% c(1, 2) & credit_inv$sum_lead == 0] <- "Medium"
+credit_inv$CRediT_involvement[credit_inv$sum_support >= 5 & credit_inv$CRediT_involvement <= "Medium"] <- "Medium"
+
+applicant()$indicators$CRediT_involvement <- credit_inv$CRediT_involvement
+applicant()$indicators$CRediT_involvement_roles <- main_roles
+
+
+
+#----------------------------------------------------------------
+# Call BIP! API for impact measures
+#----------------------------------------------------------------
+
+library(curl)
+
+doi_csv <- paste0(applicant()$indicators$dois_normalized, collapse=",") |> URLencode(reserved=TRUE)
+req <- curl_fetch_memory(paste0("https://bip-api.imsi.athenarc.gr/paper/scores/batch/", doi_csv))
+
+BIP <- jsonlite::fromJSON(rawToChar(req$content)) 
+BIP$pop_class <- factor(BIP$pop_class, levels=paste0("C", 1:5), ordered=TRUE)
+BIP$inf_class <- factor(BIP$inf_class, levels=paste0("C", 1:5), ordered=TRUE)
+BIP$imp_class <- factor(BIP$imp_class, levels=paste0("C", 1:5), ordered=TRUE)
+colnames(BIP)[5] <- "three_year_cc"
+
+
+#----------------------------------------------------------------
+# Retrieve submitted works from OpenAlex
+#----------------------------------------------------------------
+
+all_pubs <- applicant()$indicators[applicant()$indicators$type == "Publication", ]
+
+all_papers <- oa_fetch(entity = "works", doi = all_pubs$doi_links)
+
+#cat(paste0(nrow(all_papers), " out of ", nrow(all_pubs), " submitted publications could be automatically retrieved with openAlex.\n"))
+
+if (nrow(all_papers) < nrow(all_pubs)) {
+  cat('\n::: {.callout-caution collapse="true"}\n
+## The following papers could *not* be retrieved by openAlex:\n\n')
+  all_pubs[!all_pubs$doi_links %in% all_papers$doi, ] %>% 
+    select(Title, Year, doi, P_TypePublication) %>% 
+    kable() %>% 
+    print()
+
+  cat("\n:::\n")
+}
+```
+
+
+<!-- This document summarizes the research style of `r applicant()$meta$FullName` - the *"fingerprint" of how research is conducted*, when only the best work is submitted to this analysis. -->
+
+
+
+
+# Submitted works {orientation="columns"}
+
+## Column1 {width=30%}
+
+### Row {height=45%}
+::: {.card title="Type of method"}
+```{r types_of_papers}
+dat_tM <- applicant()$indicators %>% select(contains("P_TypeMethod"))
+
+# add missing columns
+expected_columns<- c(
+  P_TypeMethod_Empirical = FALSE,
+  P_TypeMethod_MetaAnalysis = FALSE, 
+  P_TypeMethod_Theoretical = FALSE, 
+  P_TypeMethod_Simulation = FALSE,
+  P_TypeMethod_OtherMethod = FALSE
+)
+# adding those columns to df1
+dat_tM <- add_column(dat_tM, !!!expected_columns[setdiff(names(expected_columns), names(dat_tM))])
+
+# remove the free text field for this table
+dat_tM$P_TypeMethod_Other <- NULL
+
+dat_tM_tab <- pivot_longer(dat_tM, everything()) %>% 
+  group_by(name) %>% 
+  summarise(paper_count=sum(value, na.rm=TRUE))
+
+dat_tM_tab$name <- str_replace(dat_tM_tab$name, "P_TypeMethod_", "")
+dat_tM_tab <- unCamel(df=dat_tM_tab, cname="name")
+
+colnames(dat_tM_tab) <- c("Type of method", "# papers")
+kable(dat_tM_tab)
+```
+:::

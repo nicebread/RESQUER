@@ -1,0 +1,80 @@
+--- 
+title: "RESQUE Profile"
+format: 
+  dashboard:
+    theme: 
+      - lumen
+      - custom.scss
+    nav-buttons:
+      - icon: github
+        href: https://github.com/nicebread/RESQUE
+server: shiny
+---
+
+
+```{r setup}
+#| context: setup
+
+
+library(shiny)
+
+# # TODO: Read all files in folder; let users select the folder via dialog box
+#   applicant_list <- list()
+#     #incProgress(1/3, detail = paste("Reading json ", 1, "/3"))
+#     applicant_list[[1]] <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+#     applicant_list[[2]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
+```
+
+
+# {.toolbar}
+
+```{r}
+selectInput('applicant_name', 'Name of applicant', c("Felix"=1, "Anne"=2, "Daniel"=3))
+```
+
+
+```{r}
+#| context: setup
+library(ggplot2)
+dataset <- diamonds
+```
+
+
+# Plot
+
+```{r}
+plotOutput('plot')
+```
+
+# Data
+
+```{r}
+tableOutput('data')
+```
+
+```{r}
+htmlOutput(dataset())
+```
+
+
+```{r}
+#| context: server
+
+dataset <- reactive({
+  diamonds[sample(nrow(diamonds), input$applicant_name),]
+})
+
+dat <- dataset()
+ 
+output$plot <- renderPlot({
+  
+  p <- ggplot(
+    dataset(), aes(x=carat, y=cut)) + geom_point()
+  p
+  
+})
+
+output$data <- renderTable({
+  dataset()
+})
+```

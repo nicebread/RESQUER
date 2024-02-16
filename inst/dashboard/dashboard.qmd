@@ -2,6 +2,9 @@
 title: "RESQUE Profile"
 format: 
   dashboard:
+    theme: 
+      - lumen
+      - custom.scss
     nav-buttons:
       - icon: github
         href: https://github.com/nicebread/RESQUE
@@ -23,7 +26,23 @@ library(openalexR)
 library(tibble)
 library(kableExtra)
 
-applicant <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+# TODO: Read all files in folder; let users select the folder via dialog box
+  applicant_list <- list()
+    #incProgress(1/3, detail = paste("Reading json ", 1, "/3"))
+    applicant_list[[1]] <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+    applicant_list[[2]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
+    applicant_list[[3]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1697454489129.json")
+```
+
+<!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
+
+
+
+<!-- Leading content (displayed above all cards) -->
+
+```{r preprocess}
+
+applicant <- applicant_list[[1]]
 
 # Split the research outputs into types, reduce to suitable submissions
 pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
@@ -47,12 +66,7 @@ applicant$indicators$P_TopPaper_Select[is.na(applicant$indicators$P_TopPaper_Sel
 # CRediT preprocessing
 #--------------------------------------------------------
 
-# pull elements from the "applicant" object into separate objects
-credit <- applicant$credit
-scores <- applicant$scores
-
-
-credit_tab <- table(credit$Role, credit$Degree)
+credit_tab <- table(applicant$credit$Role, applicant$credit$Degree)
 
 # arrange credit roles by weight (Lead > Support > Equal), summed across works
 ct_ordered <- as.data.frame.matrix(credit_tab) %>%
@@ -65,7 +79,7 @@ ct_ordered <- as.data.frame.matrix(credit_tab) %>%
     ) %>%
     arrange(-LeadEqual, -Support)
 
-credit$Role <- factor(credit$Role, levels = rev(rownames(ct_ordered)))
+applicant$credit$Role <- factor(applicant$credit$Role, levels = rev(rownames(ct_ordered)))
 
 # The "CRediT involvement" categories
 # ---------------------------------------------------------------------
@@ -109,6 +123,7 @@ credit_inv$CRediT_involvement[credit_inv$sum_support >= 5 & credit_inv$CRediT_in
 applicant$indicators$CRediT_involvement <- credit_inv$CRediT_involvement
 applicant$indicators$CRediT_involvement_roles <- main_roles
 
+rm(credit_inv, main_roles)
 
 
 #----------------------------------------------------------------
@@ -138,28 +153,57 @@ all_papers <- oa_fetch(entity = "works", doi = all_pubs$doi_links)
 #cat(paste0(nrow(all_papers), " out of ", nrow(all_pubs), " submitted publications could be automatically retrieved with openAlex.\n"))
 
 if (nrow(all_papers) < nrow(all_pubs)) {
-  cat('\n::: {.callout-caution collapse="true"}\n
-## The following papers could *not* be retrieved by openAlex:\n\n')
-  all_pubs[!all_pubs$doi_links %in% all_papers$doi, ] %>% 
-    select(Title, Year, doi, P_TypePublication) %>% 
-    kable() %>% 
-    print()
-
-  cat("\n:::\n")
+  warning(paste0(
+    '## The following papers could *not* be retrieved by openAlex:\n\n',
+    all_pubs[!all_pubs$doi_links %in% all_papers$doi, ] %>%
+    select(Title, Year, DOI, P_TypePublication)
+  ))
 }
+
+all_papers$n_authors <- sapply(all_papers$author, nrow)
+
+all_papers$team_category <- cut(all_papers$n_authors, breaks=c(0, 1, 5, 15, Inf), labels=c("Single authored", "Small team (<= 5 co-authors)", "Large team (6-15 co-authors)", "Big Team (> 15 co-authors)"))
+
+applicant$all_papers <- all_papers
+rm(all_papers)
+
+#----------------------------------------------------------------
+# Create table of publications
+#----------------------------------------------------------------
+
+ref_list <- left_join(applicant$all_papers, applicant$indicators %>% select(doi=doi_links, CRediT_involvement, CRediT_involvement_roles, title_links_html, P_TopPaper_Select), by="doi") %>% 
+  arrange(-P_TopPaper_Select, -as.numeric(CRediT_involvement))
+
+names_vec <- c()
+for (i in 1:nrow(ref_list)) {
+  names_vec <- c(names_vec, format_names(ref_list[i, ], alphabetical = TRUE))
+}
+
+ref_table <- data.frame(
+  Title=paste0(ifelse(ref_list$P_TopPaper_Select, "⭐️", ""), ref_list$title_links_html),
+  Authors = names_vec,
+  ref_list$CRediT_involvement,
+  ref_list$CRediT_involvement_roles
+)
+
+colnames(ref_table) <- c("Title", "Authors (alphabetical)", "Candidates' CRediT involvement", "Candidates' CRediT main roles")
+
+applicant$ref_table <- ref_table
+rm(ref_table, ref_list)
+
 ```
 
 
-<!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
+<!-- This document summarizes the research style of `r applicant$meta$FullName` - the *"fingerprint" of how research is conducted*, when only the best work is submitted to this analysis. -->
 
-<!-- Leading content (displayed above all cards) -->
-This document summarizes the research style of `r applicant$meta$FullName` - the *"fingerprint" of how research is conducted*, when only the best work is submitted to this analysis.
+
 
 
 # Submitted works {orientation="columns"}
 
 ## Column1 {width=30%}
 
+### Row {height=45%}
 ::: {.card title="Type of method"}
 ```{r types_of_papers}
 dat_tM <- applicant$indicators %>% select(contains("P_TypeMethod"))
@@ -190,56 +234,40 @@ kable(dat_tM_tab)
 ```
 :::
 
+### Row {height=55%}
+::: {.card title="Journals where the author published"}
+::: {style="font-size: 85%;"}
+According to [CoARA Commitment 3](https://coara.eu/agreement/the-commitments/), research outputs should neither be assessed based on the journal where it was published, nor on metrics relating to the publication venue. We list the journals where the candidate published to allow a judgement of the field and the relevancy of the author's publication profile for the position. Journals are ordered by frequency and then alphabetically:
 
-::: {.card title="Type of collaboration"}
-```{r team_science}
-#| results: "asis"
-
-all_papers$n_authors <- sapply(all_papers$author, nrow)
-
-all_papers$team_category <- cut(all_papers$n_authors, breaks=c(0, 1, 5, 15, Inf), labels=c("Single authored", "Small team (<= 5 co-authors)", "Large team (6-15 co-authors)", "Big Team (> 15 co-authors)"))
-
-team_tab <- table(all_papers$team_category) |> as.data.frame()
-team_tab$perc <- paste0(round(team_tab$Freq*100 / nrow(all_papers)), "%")
-colnames(team_tab) <- c("Team category", "Frequency", "%")
-kable(team_tab, align=c("l", "r", "r"))
+```{r journal_list}
+#| results: asis
+jt <- table(applicant$all_papers$so)
+jt2 <- jt[order(jt, names(jt))]
+cat(paste0(names(jt2), collapse=", "))
 ```
 :::
+:::
 
-## Column2 {width=70%}
+## Col2: Ref_table {width=70%}
 
 ::: {.card title="Submitted works"}
 **Note:**
 
-- Author order has been re-arranged to be alphabetical. 
+- Author order has been re-arranged to be alphabetical. Please infer the author's contributions from the CRediT taxonomy.
 - Journal names have been removed.
-- Please infer the author's contributions from the CRediT taxonomy
 - ⭐️ = selected as one of the best works.
-
-**Submitted works:**
 
 ::: {style="font-size: 80%;"}
 ```{r}
 #| results: "asis"
 
-ref_list <- left_join(all_papers, applicant$indicators %>% select(doi=doi_links, CRediT_involvement, CRediT_involvement_roles, title_links_html, P_TopPaper_Select), by="doi") %>% 
-  arrange(-P_TopPaper_Select, rev(CRediT_involvement))
-
-names_vec <- c()
-for (i in 1:nrow(ref_list)) {
-  names_vec <- c(names_vec, format_names(ref_list[i, ], alphabetical = TRUE))
-}
-
-ref_table <- data.frame(
-  Title=paste0(ifelse(ref_list$P_TopPaper_Select, "⭐️", ""), ref_list$title_links_html),
-  Authors = names_vec,
-  ref_list$CRediT_involvement,
-  ref_list$CRediT_involvement_roles
-)
-
-colnames(ref_table) <- c("Title", "Authors", "Candidates' CRediT involvement", "Candidates' CRediT main roles")
-
-kable(ref_table, format = "html", escape = FALSE)
+# Disable Quarto post-processing for this table
+# (otherwise column_spec does not work)
+kable(applicant$ref_table, format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
+  column_spec(1, width = "25%") %>% 
+  column_spec(2, width = "25%") %>% 
+  column_spec(3, width = "10%") %>% 
+  column_spec(4, width = "40%")
 ```
 :::
 
@@ -247,31 +275,29 @@ kable(ref_table, format = "html", escape = FALSE)
 
 
 
-# Author contributions
+# Author contributions {orientation="columns"}
 
-## Row {height=30%}
+## Column1 {width=30%}
 
-```{r}
-#| content: valuebox
-#| title: "Research outputs provided:"
-#| icon: pencil
-#| color: primary
-list(
-  value = 8
-)
+::: {.card title="Type of collaboration"}
+```{r team_science}
+team_tab <- table(applicant$all_papers$team_category) |> as.data.frame()
+team_tab$perc <- paste0(round(team_tab$Freq*100 / nrow(applicant$all_papers)), "%")
+colnames(team_tab) <- c("Team category", "Frequency", "%")
+kable(team_tab, align=c("l", "r", "r"))
 ```
+:::
 
 
 
-
-## Row {height=70%}
+## Column2 {height=70%}
 
 ### Column {.tabset}
 
 ```{r credit_barchart, out.width="100%", fig.width = 8, fig.height = 5}
 #| title: CRediT Barchart
 
-ggplot(credit, aes(x = Role, fill = Degree)) +
+ggplot(applicant$credit, aes(x = Role, fill = Degree)) +
     geom_bar(stat = "count") +
     coord_flip() +
     scale_fill_manual(values = rev(c("grey90", "indianred1", "khaki2", "green3", "green4")), breaks = rev(c("not applicable", "NoRole", "Support", "Equal", "Lead"))) +
@@ -300,8 +326,19 @@ Test
 
 ## Column1 {width=30%}
 
-::: {.card title="Research impact: Highly popular publications"}
+### Row1 {height=20%}
+```{r}
+#| content: valuebox
+#| title: "Highly impactful papers:"
+#| icon: rocket-takeoff
+#| color: primary
+list(
+  value = sum(BIP$pop_class <= "C4")
+)
+```
 
+### Row2 {height=80%}
+::: {.card title="Research impact: Highly popular publications"}
 [BIP! Scholar](https://bip.imsi.athenarc.gr/site/home) (a non-commercial open-source service to facilitate fair researcher assessment) provides impact scores for publications. It provides **five impact classes** based on norm values:
 
 ::: {style="font-size: 80%;"}
