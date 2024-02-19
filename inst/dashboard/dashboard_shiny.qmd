@@ -14,6 +14,15 @@ server: shiny
 <!-- See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
 
 ```{r setup}
+#| context: setup
+#| include: false
+
+# TODO: ggf. "Software" string anpassen
+required_json_version <- data.frame(
+  type=c("Publication", "Data", "Software"),
+  required_version = c("0.2", "0.1", "0.1")
+)
+
 library(RESQUER)
 library(dplyr)
 library(tidyr)
@@ -26,13 +35,28 @@ library(knitr)
 library(openalexR)
 library(tibble)
 library(kableExtra)
+library(bslib)
+library(bsicons)
+library(plotly)
+library(shiny)
+library(shinyalert)
 
 # TODO: Read all files in folder; let users select the folder via dialog box
+  json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
+  json_files <- list.files(json_folder, pattern="*.json", full.names=TRUE)
+  
   applicant_list <- list()
-    #incProgress(1/3, detail = paste("Reading json ", 1, "/3"))
-    applicant_list[[1]] <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
-    applicant_list[[2]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
-    applicant_list[[3]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1697454489129.json")
+  applicant_names <- c()
+  version_mismatch <- c()
+  for (i in 1:length(json_files)) {
+    applicant_list[[i]] <- read_RESQUE(json_files[i]) |> preprocess()
+    applicant_names[i] <- applicant_list[[i]]$meta$FullName
+
+    version_df <- merge(applicant_list[[i]]$indicators[, c("type", "version")], required_json_version, by="type")
+    version_mismatch[i] <- any(version_df$version != version_df$required_version)
+  }
+  applicant_position <- 1:length(json_files)
+  names(applicant_position) <- applicant_names
 ```
 
 <!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
@@ -40,158 +64,36 @@ library(kableExtra)
 # {.toolbar}
 
 ```{r}
-selectInput('applicant_name', 'Name of applicant', c("Felix"=1, "Anne"=2, "Daniel"=3))
+radioButtons(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1, inline=TRUE)
 ```
 
 
 <!-- Leading content (displayed above all cards) -->
+
+
 ```{r}
 #| context: server
-appl_selected <- reactive({
-  input$applicant_name
-})
 
-```
-
-
-```{r preprocess}
-#| context: server
-
-
-print(appl_selected())
-
-applicant <- appl_selected <- reactive({
-  applicant_list[[input$applicant_name]]
-  print("Applicant changed!")
-})
-
-# Split the research outputs into types, reduce to suitable submissions
-pubs <- applicant()$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
-
-
-# clean the dois:
-dois <- applicant()$indicators$doi
-dois <- dois %>% 
-  str_replace_all("doi: ", "") %>% 
-  str_replace_all(" ", "") %>% 
-  str_trim()
-
-applicant()$indicators$doi_links <- paste0("https://doi.org/", dois)
-applicant()$indicators$doi_links_md <- paste0("[", applicant()$indicators$doi_links, "](", applicant()$indicators$doi_links, ")")
-
-applicant()$indicators$title_links_html <- paste0("<a href='", applicant()$indicators$doi_links, "'>", applicant()$indicators$Title, "</a>")
-
-
-applicant()$indicators$P_TopPaper_Select[is.na(applicant()$indicators$P_TopPaper_Select)] <- FALSE
-
-# CRediT preprocessing
-#--------------------------------------------------------
-
-# pull elements from the "applicant" object into separate objects
-credit <- applicant()$credit
-scores <- applicant()$scores
-
-
-credit_tab <- table(credit$Role, credit$Degree)
-
-# arrange credit roles by weight (Lead > Support > Equal), summed across works
-ct_ordered <- as.data.frame.matrix(credit_tab) %>%
-    mutate(
-        LeadEqual = Lead + Equal,
-        Sum = Lead + Equal + Support + NoRole,
-        # normalized weight: All "Lead" (=max) would be 1
-        weight = (Lead * 4 + Equal * 3 + Support * 1) / (Sum * 4),
-        Role = rownames(.)
-    ) %>%
-    arrange(-LeadEqual, -Support)
-
-credit$Role <- factor(credit$Role, levels = rev(rownames(ct_ordered)))
-
-# The "CRediT involvement" categories
-# ---------------------------------------------------------------------
-# TODO: Refactor into function
-
-credit_inv <- applicant()$indicators %>% select(contains("CRediT"))
-roles <- colnames(credit_inv) |> str_replace("P_CRediT_", "") |> unCamel0()
-roles[roles == "Writing Review Editing"] <- "Writing: Review & Editing"
-roles[roles == "Writing Original Draft"]  <- "Writing: Original draft"
-
-main_roles <- rep("", nrow(credit_inv))
-for (i in 1:nrow(credit_inv)) {
-  leads <- credit_inv[i, ] == "Lead"
-  equals <- credit_inv[i, ] == "Equal"
-  main_roles[i] <- paste0(
-    ifelse(sum(leads)>0, paste0(
-      "<b>Lead:</b> ",
-      paste0(roles[leads], collapse=", ")), ""),
-    ifelse(sum(equals)>0, paste0(
-      "<br><b>Equal:</b> ",
-      paste0(roles[equals], collapse=", ")), "")
+  if (any(version_mismatch)) {
+    shinyalert(
+    title = "Version mismatch",
+    text = paste0("Warning: The following applicants had a wrong version: ", paste0(applicant_names[version_mismatch], collapse=", ")),
+    size = "xs", 
+    closeOnEsc = TRUE,
+    closeOnClickOutside = TRUE,
+    html = FALSE, type = "warning",
+    showConfirmButton = TRUE,
+    showCancelButton = FALSE,
+    confirmButtonText = "OK",
+    confirmButtonCol = "#AEDEF4",
+    animation = TRUE
   )
-}
+  }
 
-credit_inv$sum_lead <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Lead"))
-credit_inv$sum_equal <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Equal"))
-credit_inv$sum_leadequal <- apply(credit_inv[, 1:14], 1, function(x) sum(x %in% c("Lead", "Equal")))
-credit_inv$sum_support <- apply(credit_inv[, 1:14], 1, function(x) sum(x=="Support"))
-
-# define the categories
-credit_inv$CRediT_involvement <- factor(rep("Low", nrow(credit_inv)), levels=c("Low", "Medium", "High", "Very High"), ordered=TRUE)
-credit_inv$CRediT_involvement[credit_inv$sum_lead >= 3] <- "Very High"
-credit_inv$CRediT_involvement[credit_inv$sum_leadequal >= 5] <- "Very High"
-
-credit_inv$CRediT_involvement[credit_inv$sum_lead %in% c(1, 2)] <- "High"
-credit_inv$CRediT_involvement[credit_inv$sum_leadequal %in% c(3, 4) & credit_inv$CRediT_involvement != "Very High"] <- "High"
-
-credit_inv$CRediT_involvement[credit_inv$sum_equal %in% c(1, 2) & credit_inv$sum_lead == 0] <- "Medium"
-credit_inv$CRediT_involvement[credit_inv$sum_support >= 5 & credit_inv$CRediT_involvement <= "Medium"] <- "Medium"
-
-applicant()$indicators$CRediT_involvement <- credit_inv$CRediT_involvement
-applicant()$indicators$CRediT_involvement_roles <- main_roles
-
-
-
-#----------------------------------------------------------------
-# Call BIP! API for impact measures
-#----------------------------------------------------------------
-
-library(curl)
-
-doi_csv <- paste0(applicant()$indicators$dois_normalized, collapse=",") |> URLencode(reserved=TRUE)
-req <- curl_fetch_memory(paste0("https://bip-api.imsi.athenarc.gr/paper/scores/batch/", doi_csv))
-
-BIP <- jsonlite::fromJSON(rawToChar(req$content)) 
-BIP$pop_class <- factor(BIP$pop_class, levels=paste0("C", 1:5), ordered=TRUE)
-BIP$inf_class <- factor(BIP$inf_class, levels=paste0("C", 1:5), ordered=TRUE)
-BIP$imp_class <- factor(BIP$imp_class, levels=paste0("C", 1:5), ordered=TRUE)
-colnames(BIP)[5] <- "three_year_cc"
-
-
-#----------------------------------------------------------------
-# Retrieve submitted works from OpenAlex
-#----------------------------------------------------------------
-
-all_pubs <- applicant()$indicators[applicant()$indicators$type == "Publication", ]
-
-all_papers <- oa_fetch(entity = "works", doi = all_pubs$doi_links)
-
-#cat(paste0(nrow(all_papers), " out of ", nrow(all_pubs), " submitted publications could be automatically retrieved with openAlex.\n"))
-
-if (nrow(all_papers) < nrow(all_pubs)) {
-  cat('\n::: {.callout-caution collapse="true"}\n
-## The following papers could *not* be retrieved by openAlex:\n\n')
-  all_pubs[!all_pubs$doi_links %in% all_papers$doi, ] %>% 
-    select(Title, Year, doi, P_TypePublication) %>% 
-    kable() %>% 
-    print()
-
-  cat("\n:::\n")
-}
+applicant <- reactive({
+  return(applicant_list[[as.numeric(input$applicant_name)]])
+})
 ```
-
-
-<!-- This document summarizes the research style of `r applicant()$meta$FullName` - the *"fingerprint" of how research is conducted*, when only the best work is submitted to this analysis. -->
-
 
 
 
@@ -202,30 +104,358 @@ if (nrow(all_papers) < nrow(all_pubs)) {
 ### Row {height=45%}
 ::: {.card title="Type of method"}
 ```{r types_of_papers}
-dat_tM <- applicant()$indicators %>% select(contains("P_TypeMethod"))
+#| context: server
 
-# add missing columns
-expected_columns<- c(
-  P_TypeMethod_Empirical = FALSE,
-  P_TypeMethod_MetaAnalysis = FALSE, 
-  P_TypeMethod_Theoretical = FALSE, 
-  P_TypeMethod_Simulation = FALSE,
-  P_TypeMethod_OtherMethod = FALSE
-)
-# adding those columns to df1
-dat_tM <- add_column(dat_tM, !!!expected_columns[setdiff(names(expected_columns), names(dat_tM))])
+output$Type_of_method_tab <- function(){
+  dat_tM <- applicant()$indicators %>% select(contains("P_TypeMethod"))
 
-# remove the free text field for this table
-dat_tM$P_TypeMethod_Other <- NULL
+  # add missing columns
+  expected_columns<- c(
+    P_TypeMethod_Empirical = FALSE,
+    P_TypeMethod_MetaAnalysis = FALSE, 
+    P_TypeMethod_Theoretical = FALSE, 
+    P_TypeMethod_Simulation = FALSE,
+    P_TypeMethod_OtherMethod = FALSE
+  )
+  # adding those columns to df1
+  dat_tM <- add_column(dat_tM, !!!expected_columns[setdiff(names(expected_columns), names(dat_tM))])
+  
+  # remove the free text field for this table
+  dat_tM$P_TypeMethod_Other <- NULL
+  
+  dat_tM_tab <- pivot_longer(dat_tM, everything()) %>% 
+    group_by(name) %>% 
+    summarise(paper_count=sum(value, na.rm=TRUE))
+  
+  dat_tM_tab$name <- str_replace(dat_tM_tab$name, "P_TypeMethod_", "")
+  dat_tM_tab <- unCamel(df=dat_tM_tab, cname="name")
+  
+  colnames(dat_tM_tab) <- c("Type of method", "# papers")
 
-dat_tM_tab <- pivot_longer(dat_tM, everything()) %>% 
-  group_by(name) %>% 
-  summarise(paper_count=sum(value, na.rm=TRUE))
+  kable(dat_tM_tab, "html") %>%
+    kable_styling(font_size = 14, bootstrap_options = c("striped", "hover"))
+}
+```
 
-dat_tM_tab$name <- str_replace(dat_tM_tab$name, "P_TypeMethod_", "")
-dat_tM_tab <- unCamel(df=dat_tM_tab, cname="name")
-
-colnames(dat_tM_tab) <- c("Type of method", "# papers")
-kable(dat_tM_tab)
+```{r}
+tableOutput('Type_of_method_tab')
 ```
 :::
+
+
+### Row Journal List {height=55%}
+::: {.card title="Journals where the author published"}
+::: {style="font-size: 85%;"}
+According to [CoARA Commitment 3](https://coara.eu/agreement/the-commitments/), research outputs should neither be assessed based on the journal where it was published, nor on metrics relating to the publication venue. We list the journals where the candidate published to allow a judgement of the field and the relevancy of the author's publication profile for the position. Journals are ordered by frequency and then alphabetically:
+
+```{r journal_list}
+#| context: server
+
+output$journal_list_output <- function(){
+  jt <- table(applicant()$all_papers$so)
+  jt2 <- jt[order(jt, names(jt))]
+  journal_list <- paste0(names(jt2), collapse=", ")
+  journal_list
+}
+```
+```{r}
+textOutput('journal_list_output')
+```
+:::
+:::
+
+
+
+
+## Col2: Ref_table {width=70%}
+
+::: {.card title="Submitted works"}
+**Note:**
+
+- Author order has been re-arranged to be alphabetical. Please infer the author's contributions from the CRediT taxonomy.
+- Journal names have been removed.
+- ⭐️ = selected as one of the best works.
+
+```{r}
+#| context: server
+
+output$ref_table_output <- function(){
+  # Disable Quarto post-processing for this table
+  # (otherwise column_spec does not work)
+  kable(applicant()$ref_table, format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
+    column_spec(1, width = "25%") %>% 
+    column_spec(2, width = "25%") %>% 
+    column_spec(3, width = "10%") %>% 
+    column_spec(4, width = "40%") %>%
+    kable_styling(font_size = 12, bootstrap_options = c("striped", "hover"))
+}
+```
+```{r}
+tableOutput('ref_table_output')
+```
+:::
+
+
+
+
+# Author contributions {orientation="columns"}
+
+## Column1 team_science {width=40%}
+
+::: {.card title="Type of collaboration"}
+```{r team_science}
+#| context: server
+
+output$team_science_output <- function(){
+  team_tab <- table(applicant()$all_papers$team_category) |> as.data.frame()
+  team_tab$perc <- paste0(round(team_tab$Freq*100 / nrow(applicant()$all_papers)), "%")
+  colnames(team_tab) <- c("Team category", "Frequency", "%")
+  kable(team_tab, align=c("l", "r", "r")) %>%
+    kable_styling(font_size = 14, bootstrap_options = c("striped", "hover"))
+}
+```
+```{r}
+tableOutput('team_science_output')
+```
+:::
+
+
+::: {.card title="Level of involvement"}
+
+We categorized papers into levels of involvement, based on the degrees of contributorship:
+
+```{r credit_inv_tab}
+#| context: server
+
+credit_inv_tab <- data.frame(
+  "Involvement Level" = c("Very High", "High", "Medium", "Low"),
+  "Definition" = c(
+    "(>=3 roles as *lead*) OR (>= 5 roles as (*lead* OR *equal*))",
+    "(1-2 roles as *lead*) OR (3-4 roles as *equal*)",
+    "(1-2 roles as *equal*) OR (>= 5 roles as *support*)",
+    "All other combinations"
+  )
+)
+
+output$credit_inv_table <- function(){
+  t1 <- table(applicant()$indicators$CRediT_involvement) %>% as.data.frame() 
+  
+  # this is an ugly way of merging ...
+  credit_inv_tab$Publications <- 0
+  credit_inv_tab$Publications[1] <- t1[t1$Var1 == "Very High", 2]
+  credit_inv_tab$Publications[2] <- t1[t1$Var1 == "High", 2]
+  credit_inv_tab$Publications[3] <- t1[t1$Var1 == "Medium", 2]
+  
+  
+  kable(credit_inv_tab) %>%
+    kable_styling(font_size = 14, bootstrap_options = c("striped", "hover"))
+}
+```
+```{r credit_inv_tab_output}
+tableOutput("credit_inv_table")
+```
+:::
+
+
+## Column2 {height=60%}
+
+### Column {.tabset}
+
+```{r credit_barchart}
+#| context: server
+
+output$credit_barchart <- renderPlot({
+  p <- ggplot(applicant()$credit, aes(x = Role, fill = Degree)) +
+      geom_bar(stat = "count") +
+      coord_flip() +
+      scale_fill_manual(values = rev(c("grey90", "indianred1", "khaki2", "green3", "green4")), breaks = rev(c("not applicable", "NoRole", "Support", "Equal", "Lead"))) +
+      theme_minimal() + xlab("") + ylab("# of publications") + 
+      theme(axis.text.y = element_text(size = 14)) + 
+      # force whole integers on x-axis
+      scale_y_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1))
+  
+  p
+})
+```
+```{r credit_barchart_plot, out.width="100%", fig.width = 8, fig.height = 5}
+#| title: CRediT Barchart
+plotOutput('credit_barchart')
+```
+
+```{r credit_wordcloud}
+#| context: server
+
+output$credit_wordcloud <- renderPlot({
+  if (any(applicant()$credit_ordered$weight > 0)) {
+    wordcloud(applicant()$credit_ordered$Role, freq = applicant()$credit_ordered$weight, scale = c(2, .1), min.freq = 0.4, random.order = FALSE)  
+  }
+})
+```
+```{r credit_wordcloud_plot}
+#| title: CRediT Word Cloud
+plotOutput('credit_wordcloud')
+```
+
+
+
+
+
+# Impact {orientation="columns"}
+
+## Column1 HI-Papers {width=30%}
+
+### Row1 VB {height=20%}
+```{r vb_impact_papers}
+#| context: server
+output$vb_impact_papers <- function(){
+  paste0(sum(applicant()$BIP$pop_class <= "C4", na.rm=TRUE), "/", sum(applicant()$BIP$pop_class <= "C5", na.rm=TRUE))
+}
+```
+```{r vb_impact_papers_output}
+value_box(
+  title = "Highly impactful papers:",
+  value = textOutput("vb_impact_papers"),
+  showcase = bs_icon("rocket-takeoff")
+)
+```
+
+
+### Row2 Info {height=80%}
+
+```{r}
+#| context: server
+
+output$HI_text <- function(){
+  paste0("From ", sum(applicant()$BIP$pop_class <= "C5", na.rm=TRUE), " papers of ", applicant()$meta$FullName, " that could be retrieved in the BIP! database, ", sum(applicant()$BIP$pop_class <= "C4", na.rm=TRUE), ifelse(nrow(applicant()$BIP %>% filter(pop_class <= "C4")) == 1, " was ", " were "), "in the top 10% popularity class of all papers or better.")
+}
+```
+
+
+::: {.card title="Research impact: Highly popular publications"}
+[BIP! Scholar](https://bip.imsi.athenarc.gr/site/home) (a non-commercial open-source service to facilitate fair researcher assessment) provides impact scores for publications. It provides **five impact classes** based on norm values:
+
+::: {style="font-size: 80%;"}
+- Top 0.01%           
+- Top 0.1%            
+- Top 1%              
+- Top 10%             
+- Average (Bottom 90%)
+:::
+
+Here, we consider the **Popularity** measure. 
+
+```{r}
+textOutput("HI_text")
+```
+
+::: {.callout-note title="Computation of the Popularity metric" collapse="true"}
+This indicator reflects impact/attention of an article in the research community at large. It is based on *AttRank*, a variation of PageRank (known from the Google search algorithm) that accounts for the temporal evolution of the citation network. By that, it alleviates the bias against younger publications, which have not had the chance to accumulate a lot of citations. It models a researcher's preference to read papers which received a lot of attention recently. It was evaluated (and vetted) in its performance to predict the ranking of papers concerning their *future impact* (i.e., citations). For more details, see [BIP! glossary](https://bip.imsi.athenarc.gr/site/indicators) and the references therein.
+:::
+:::
+
+
+
+## Column2 HI-Table {width=70%}
+
+```{r}
+#| context: server
+
+output$HI_papers_table <- function(){
+
+pop_sel <- applicant()$BIP %>% 
+  filter(pop_class <= "C4") %>% 
+  arrange(pop_class, -three_year_cc) %>% 
+  select(doi, three_year_cc, cc,	pop_class)
+
+pop_sel$Label <- factor(pop_sel$pop_class, levels=paste0("C", 1:5), labels=c("Top 0.01%", "Top 0.1%", "Top 1%", "Top 10%", "Average (Bottom 90%)"))
+pop_sel$pop_class <- NULL
+
+pop_sel <- left_join(pop_sel, applicant()$indicators %>% select(doi=dois_normalized, Title, CRediT_involvement, CRediT_involvement_roles), by="doi") %>% 
+  relocate(Title)
+
+colnames(pop_sel) <- c("Title", "doi", "3 year citation count", "Overall citation count", "Popularity", "Candidates' CRediT involvement", "Candidates' CRediT main roles")
+
+pop_sel$doi <- NULL
+
+# add some emojis:
+pop_sel$Title[pop_sel$Popularity == "Top 0.01%"] <- paste0("🚀", pop_sel$Title[pop_sel$Popularity == "Top 0.01%"])
+pop_sel$Title[pop_sel$Popularity == "Top 0.1%"] <- paste0("🔥", pop_sel$Title[pop_sel$Popularity == "Top 0.1%"])
+pop_sel$Title[pop_sel$Popularity == "Top 1%"] <- paste0("️✨", pop_sel$Title[pop_sel$Popularity == "Top 1%"])
+
+if (nrow(pop_sel) > 0) {
+  kable(pop_sel, format = "html", escape = FALSE) %>%
+    kable_styling(font_size = 12, bootstrap_options = c("striped", "hover"))
+} else {
+}
+}
+```
+
+```{r}
+#| fill: false
+#| title: "Highly popular papers"
+tableOutput('HI_papers_table')
+```
+
+
+
+
+# Open Science {orientation="columns"}
+
+## Column1 {width=33%}
+
+```{r prereg}
+#| context: server
+
+output$prereg <- renderPlotly({
+  prereg_tab <- table(applicant()$pubs$P_Preregistration2) |> as.data.frame() %>%
+    mutate(perc = round(Freq*100/sum(Freq)))
+  
+  # give missing categories a minimal width to make them visible
+  #prereg_tab$perc[prereg_tab$perc == 0] <- 0.2
+  
+  BC_h(
+    cat_labels=prereg_tab$Var1,
+    values=prereg_tab$Freq,
+    colors=c("#eeeeee", "#FED976", "#90c916", "#008000"), rev=TRUE)
+})
+```
+```{r prereg_plot}
+#| title: "Was the research preregistered / a registered report?"
+#| fig-width: 10
+#| fig-height: 4
+plotlyOutput('prereg')
+```
+
+
+
+```{r prereg_repl}
+#| context: server
+
+output$prereg_repl <- renderPlotly({
+  if (!is.null(applicant()$pubs$P_PreregisteredReplication)) {
+  
+  repl_tab <- table(applicant()$pubs$replication) |> as.data.frame() %>%
+    mutate(perc = round(Freq*100/sum(Freq)))
+  
+  BC_h(
+    cat_labels=repl_tab$Var1,
+    values=repl_tab$Freq,
+    colors=c("#eeeeee", "#FED976", "#90c916", rev=TRUE)
+  )
+  }
+})
+```
+```{r prereg_repl_plot}
+#| title: "Preregistered replication attempt"
+#| fig-width: 10
+#| fig-height: 4
+plotlyOutput('prereg_repl')
+```
+
+
+## Column2 {width=33%}
+
+
+
+## Column3 {width=33%}
+

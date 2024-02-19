@@ -15,7 +15,10 @@ Imports:
   dplyr,
   tidyr,
   ggplot2,
-  plotly
+  plotly,
+  curl,
+  magrittr,
+  openalexR
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Suggests: 

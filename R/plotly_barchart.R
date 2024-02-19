@@ -8,6 +8,7 @@
 #' @param cat_labels a character vector of category labels for the bars.
 #' @param values a numeric vector of values for each category.
 #' @param colors a character vector of colors for each category.
+#' @param title The title of the plot.
 #' @param rev Should the order of categories be reversed?
 #'
 #' @return a plotly object of the stacked bar chart.
@@ -17,7 +18,7 @@
 #'   cat_labels=c("Yes", "No", "not applicable"),
 #'   values=c(10, 2, 4),
 #'   colors=c("#90c916", "#FED976", "#eeeeee"),
-#'   title="The publication contained a preregistered replication attempt (either direct/close or conceptual)")
+#'   title="The publication contained a preregistered replication attempt")
 #'
 #' BC_h(
 #'   cat_labels=c("Yes", "No"),

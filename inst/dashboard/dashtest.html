@@ -6,8 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Barkamian Analytics">
 
-<title>RESQUE Profile</title>
+<title>Diamonds Explorer</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -45,7 +46,7 @@ ul.task-list li input[type="checkbox"] {
 
 </head>
 
-<body class="quarto-dashboard dashboard-fill dashboard-toolbar fullcontent">
+<body class="quarto-dashboard dashboard-fill dashboard-sidebar fullcontent">
 
 <header id="quarto-dashboard-header">
 <nav class="navbar navbar-expand-md slim" data-bs-theme="dark">
@@ -58,30 +59,19 @@ ul.task-list li input[type="checkbox"] {
     <div class="navbar-brand-container">       
 
       <div class="navbar-title">
-        <div class="navbar-title-text"><a href="#">RESQUE Profile</a></div>
+        <div class="navbar-title-text"><a href="#">Diamonds Explorer</a></div>
         
-        
+        <div class="navbar-author">Barkamian Analytics</div>
       </div>
     </div>
-<div id="dashboard-collapse" class="navbar-collapse collapse"><ul class="navbar-nav navbar-nav-scroll me-auto" role="tablist"><li class="nav-item" role="presentation"><a id="tab-plot" class="nav-link active" data-bs-toggle="tab" role="tab" data-bs-target="#plot" data-scrolling="false" href="#plot" aria-controls="plot" aria-selected="true"><span class="nav-link-text">Plot</span></a></li><li class="nav-item" role="presentation"><a id="tab-data" class="nav-link" data-bs-toggle="tab" role="tab" data-bs-target="#data" data-scrolling="false" href="#data" aria-controls="data" aria-selected="false"><span class="nav-link-text">Data</span></a></li></ul><div class="quarto-dashboard-links"><a class="quarto-dashboard-link" href="https://github.com/nicebread/RESQUE"><i class="bi bi-github"></i></a></div></div></div>
+<div id="dashboard-collapse" class="navbar-collapse collapse"><ul class="navbar-nav navbar-nav-scroll me-auto" role="tablist"><li class="nav-item" role="presentation"><a id="tab-plot" class="nav-link active" data-bs-toggle="tab" role="tab" data-bs-target="#plot" data-scrolling="false" href="#plot" aria-controls="plot" aria-selected="true"><span class="nav-link-text">Plot</span></a></li><li class="nav-item" role="presentation"><a id="tab-data" class="nav-link" data-bs-toggle="tab" role="tab" data-bs-target="#data" data-scrolling="false" href="#data" aria-controls="data" aria-selected="false"><span class="nav-link-text">Data</span></a></li><li class="nav-item" role="presentation"><a id="tab-plot-test" class="nav-link" data-bs-toggle="tab" role="tab" data-bs-target="#plot-test" data-scrolling="false" href="#plot-test" aria-controls="plot-test" aria-selected="false"><span class="nav-link-text">Plot test</span></a></li></ul></div></div>
 </nav>
 </header>
-<div class="page-layout-custom quarto-dashboard-content bslib-gap-spacing html-fill-container bslib-page-fill quarto-dashboard-pages">  
+<div class="page-layout-custom quarto-dashboard-content bslib-gap-spacing html-fill-container bslib-page-fill quarto-dashboard-pages dashboard-sidebar-container">  
 
-<div class="html-fill-item html-fill-container dashboard-toolbar-container toolbar-toplevel"><div class="toolbar html-fill-container" data-layout="flow">
-<div class="cell-output-display no-overflow-x">
-<div class="form-group shiny-input-container">
-<label class="control-label" id="applicant_name-label" for="applicant_name">Name of applicant</label>
-<div>
-<select id="applicant_name" class="shiny-input-select"><option value="1" selected="">Felix</option>
-<option value="2">Anne</option>
-<option value="3">Daniel</option></select>
-<script type="application/json" data-for="applicant_name" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
-</div>
-</div>
-</div>
-</div><div class="toolbar-content html-fill-item html-fill-container">
-<div class="tab-content bslib-grid html-fill-item html-fill-container" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="bslib-sidebar-layout html-fill-item html-fill-container" data-bslib-sidebar-open="desktop" data-bslib-sidebar-init="true" data-bslib-sidebar-border="false" data-bslib-sidebar-border-radius="false"><div class="main html-fill-container html-fill-item"><div class="sidebar-content html-fill-item html-fill-container">
+<div class="tab-content bslib-grid html-fill-item html-fill-container" style="display: grid; grid-template-columns: minmax(3em, 1fr);
+grid-auto-rows: minmax(0, 1fr);">
 <div id="plot" class="dashboard-page tab-pane show active html-fill-item html-fill-container" data-orientation="rows" aria-labelledby="tab-plot">
 <div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
 <div class="card cell html-fill-item html-fill-container bslib-card" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
@@ -97,13 +87,27 @@ ul.task-list li input[type="checkbox"] {
     </span>
 </bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
 </div>
-</div>
-<div id="data" class="dashboard-page tab-pane grid-skip html-fill-item html-fill-container" data-orientation="rows" aria-labelledby="tab-data">
+</div><div id="data" class="dashboard-page tab-pane grid-skip html-fill-item html-fill-container" data-orientation="rows" aria-labelledby="tab-data">
 <div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
 <div class="card cell html-fill-item html-fill-container bslib-card" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
 <div class="card-body html-fill-item html-fill-container">
 <div class="cell-output-display html-fill-item html-fill-container no-overflow-x">
 <div id="data" class="shiny-html-output html-fill-item html-fill-container"></div>
+</div>
+</div>
+<bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
+</div>
+</div><div id="plot-test" class="dashboard-page tab-pane grid-skip html-fill-item html-fill-container" data-orientation="rows" aria-labelledby="tab-plot-test">
+<div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="card cell html-fill-item html-fill-container bslib-card" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-body html-fill-item html-fill-container">
+<div class="cell-output-display html-fill-item html-fill-container">
+<div class="shiny-plot-output html-fill-item html-fill-container" id="credit_wordcloud2" style="width:100%;height:400px;"></div>
 </div>
 </div>
 <bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
@@ -118,19 +122,126 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 </div>
-</div></div>
-<p>
-<script type="application/shiny-prerendered" data-context="server-start">
-
-library(shiny)
-
-# # TODO: Read all files in folder; let users select the folder via dialog box
-#   applicant_list <- list()
-#     #incProgress(1/3, detail = paste("Reading json ", 1, "/3"))
-#     applicant_list[[1]] <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
-#     applicant_list[[2]] <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
+</div></div><aside id="bslib-sidebar-1" class="sidebar html-fill-container html-fill-item"><div class="html-fill-container html-fill-item">
+<div class="cell-output-display">
+<div class="form-group shiny-input-container no-baseline">
+<label class="control-label" id="sampleSize-label" for="sampleSize">Sample Size</label>
+<input class="js-range-slider" id="sampleSize" data-skin="shiny" data-min="1" data-max="53940" data-from="1000" data-step="500" data-grid="true" data-grid-num="9.80709090909091" data-grid-snap="false" data-prettify-separator="," data-prettify-enabled="true" data-keyboard="true" data-data-type="number">
+</div>
+</div>
+<div class="cell-output-display">
+<br>
+</div>
+<div class="cell-output-display">
+<div class="form-group shiny-input-container">
+<div class="checkbox">
+<label>
+<input id="jitter" type="checkbox" class="shiny-input-checkbox">
+<span>Jitter</span>
+</label>
+</div>
+</div>
+</div>
+<div class="cell-output-display">
+<div class="form-group shiny-input-container">
+<div class="checkbox">
+<label>
+<input id="smooth" type="checkbox" class="shiny-input-checkbox">
+<span>Smooth</span>
+</label>
+</div>
+</div>
+</div>
+<div class="cell-output-display no-overflow-x">
+<div class="form-group shiny-input-container">
+<label class="control-label" id="x-label" for="x">X</label>
+<div>
+<select id="x" class="shiny-input-select"><option value="carat" selected="">carat</option>
+<option value="cut">cut</option>
+<option value="color">color</option>
+<option value="clarity">clarity</option>
+<option value="depth">depth</option>
+<option value="table">table</option>
+<option value="price">price</option>
+<option value="x">x</option>
+<option value="y">y</option>
+<option value="z">z</option></select>
+<script type="application/json" data-for="x" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+<div class="cell-output-display no-overflow-x">
+<div class="form-group shiny-input-container">
+<label class="control-label" id="y-label" for="y">Y</label>
+<div>
+<select id="y" class="shiny-input-select"><option value="carat">carat</option>
+<option value="cut" selected="">cut</option>
+<option value="color">color</option>
+<option value="clarity">clarity</option>
+<option value="depth">depth</option>
+<option value="table">table</option>
+<option value="price">price</option>
+<option value="x">x</option>
+<option value="y">y</option>
+<option value="z">z</option></select>
+<script type="application/json" data-for="y" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+<div class="cell-output-display no-overflow-x">
+<div class="form-group shiny-input-container">
+<label class="control-label" id="color-label" for="color">Color</label>
+<div>
+<select id="color" class="shiny-input-select"><option value="None" selected="">None</option>
+<option value="carat">carat</option>
+<option value="cut">cut</option>
+<option value="color">color</option>
+<option value="clarity">clarity</option>
+<option value="depth">depth</option>
+<option value="table">table</option>
+<option value="price">price</option>
+<option value="x">x</option>
+<option value="y">y</option>
+<option value="z">z</option></select>
+<script type="application/json" data-for="color" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+<div class="cell-output-display no-overflow-x">
+<div class="form-group shiny-input-container">
+<label class="control-label" id="facet_row-label" for="facet_row">Facet Row</label>
+<div>
+<select id="facet_row" class="shiny-input-select"><option value="." selected="">None</option>
+<option value="cut">cut</option>
+<option value="color">color</option>
+<option value="clarity">clarity</option></select>
+<script type="application/json" data-for="facet_row" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+<div class="cell-output-display no-overflow-x">
+<div class="form-group shiny-input-container">
+<label class="control-label" id="facet_col-label" for="facet_col">Facet Column</label>
+<div>
+<select id="facet_col" class="shiny-input-select"><option value="." selected="">None</option>
+<option value="cut">cut</option>
+<option value="color">color</option>
+<option value="clarity">clarity</option></select>
+<script type="application/json" data-for="facet_col" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+</div></aside>
+<button class="collapse-toggle" type="button" title="Toggle sidebar" aria-expanded="true" aria-controls="bslib-sidebar-1">
+    <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 16 16" class="bi bi-chevron-left collapse-icon" style="fill:currentColor;" aria-hidden="true" role="img">
+      <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"></path>
+    </svg>
+</button>
+<script data-bslib-sidebar-init="">
+bslib.Sidebar.initCollapsibleAll()
 </script>
- 
+</div>
+<p>
 <script type="application/shiny-prerendered" data-context="server-start">
 library(ggplot2)
 dataset <- diamonds
@@ -138,19 +249,39 @@ dataset <- diamonds
  
 <script type="application/shiny-prerendered" data-context="server">
 dataset <- reactive({
-  diamonds[sample(nrow(diamonds), input$applicant_name),]
+  diamonds[sample(nrow(diamonds), input$sampleSize),]
 })
  
 output$plot <- renderPlot({
   
   p <- ggplot(
-    dataset(), aes(x=carat, y=cut)) + geom_point()
+    dataset(), 
+    aes_string(x=input$x, y=input$y)) + geom_point()
+  
+  if (input$color != 'None')
+    p <- p + aes_string(color=input$color)
+  
+  facets <- paste(input$facet_row, '~', input$facet_col)
+  if (facets != '. ~ .')
+    p <- p + facet_grid(facets)
+  
+  if (input$jitter)
+    p <- p + geom_jitter()
+  if (input$smooth)
+    p <- p + geom_smooth()
+  
   p
   
 })
 
 output$data <- renderTable({
   dataset()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+credit_wordcloud2 <- renderPlot({
+ hist(1:10)
 })
 </script>
  
@@ -183,7 +314,7 @@ ojs_define <- function(..., .session = shiny::getDefaultReactiveDomain()) {
 </p>
 <!--html_preserve-->
 <script type="application/shiny-prerendered" data-context="dependencies">
-{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]}]}
+{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ionrangeslider-javascript"]},{"type":"character","attributes":{},"value":["2.3.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/ionrangeslider"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/ion.rangeSlider.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["strftime"]},{"type":"character","attributes":{},"value":["0.9.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/strftime"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["strftime-min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ionrangeslider-css"]},{"type":"character","attributes":{},"value":["2.3.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/ionrangeslider"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["css/ion.rangeSlider.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.8.0"]}]}]}
 </script>
 <!--/html_preserve-->
 <!--html_preserve-->
