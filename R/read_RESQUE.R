@@ -10,7 +10,7 @@
 read_RESQUE <- function(jsonpath) {
   dat0 <- read_json(jsonpath, simplifyVector = TRUE)
 
-  meta <- dat0[1, 1:11]
+  meta <- dat0[1, 1:16]
   dat <- dat0[-1, ]
 
   # clean and create some fields

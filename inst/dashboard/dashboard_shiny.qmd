@@ -40,16 +40,21 @@ library(bsicons)
 library(plotly)
 library(shiny)
 library(shinyalert)
+library(lubridate)
+library(DT)
 
 # TODO: Read all files in folder; let users select the folder via dialog box
-  json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
+  #json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
+  json_folder <- "/Users/felix/Documents/Gitlab/resque-ratings/json"
   json_files <- list.files(json_folder, pattern="*.json", full.names=TRUE)
   
   applicant_list <- list()
   applicant_names <- c()
   version_mismatch <- c()
   for (i in 1:length(json_files)) {
-    applicant_list[[i]] <- read_RESQUE(json_files[i]) |> preprocess()
+    print(paste0("Preprocessing candidate ", i, "/", length(json_files)))
+    R <- read_RESQUE(json_files[i])
+    applicant_list[[i]] <- preprocess(applicant=R)
     applicant_names[i] <- applicant_list[[i]]$meta$FullName
 
     version_df <- merge(applicant_list[[i]]$indicators[, c("type", "version")], required_json_version, by="type")
@@ -57,6 +62,15 @@ library(shinyalert)
   }
   applicant_position <- 1:length(json_files)
   names(applicant_position) <- applicant_names
+  
+  #applicant <- function(x=9) applicant_list[[x]]
+  
+  # create overview table
+  overview_tab <- data.frame(
+    FullName = sapply(applicant_list, "[", "meta") |> sapply("[", "FullName") |> unlist(),
+    YearPhD = sapply(applicant_list, "[", "meta") |> sapply("[", "YearPhD") |> unlist(),
+    AcademicAge = sapply(applicant_list, "[", "meta") |> sapply("[", "AcademicAge") |> unlist()
+  )
 ```
 
 <!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
@@ -64,12 +78,13 @@ library(shinyalert)
 # {.toolbar}
 
 ```{r}
-radioButtons(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1, inline=TRUE)
+if (length(applicant_list) <= 8) {
+  radioButtons(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1, inline=TRUE)  
+} else {
+  selectInput(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1)
+}
+
 ```
-
-
-<!-- Leading content (displayed above all cards) -->
-
 
 ```{r}
 #| context: server
@@ -95,6 +110,62 @@ applicant <- reactive({
 })
 ```
 
+
+# Overview {orientation="columns"}
+
+```{r}
+#| context: server
+output$overview_table_output <- renderDT(overview_tab)
+```
+```{r}
+#| fill: false
+DTOutput('overview_table_output')
+```
+
+# Candidate Summary {orientation="columns"}
+
+## Column1 {width=30%}
+
+```{r vb_yearPhD}
+#| context: server
+reactive({print(applicant()$meta$YearPhD)})
+output$vb_YearPhD <- function(){applicant()$meta$YearPhD}
+```
+```{r vb_yearPhD_output}
+value_box(
+  title = "Year of PhD:",
+  value = textOutput("vb_YearPhD"),
+  showcase = bs_icon("mortarboard")
+)
+```
+
+
+```{r vb_academicAge}
+#| context: server
+
+this_year <- year(Sys.Date())
+output$vb_academicAge <- function(){applicant()$meta$AcademicAge}
+```
+```{r vb_academicAge_output}
+value_box(
+  title = "Academic Age:",
+  value = textOutput("vb_academicAge"),
+  showcase = bs_icon("calendar4-week")
+)
+```
+
+## Column2 RRS Radar chart {width=70%}
+
+```{r RRS_radarchart}
+#| context: server
+
+output$RRS_radarchart <- renderPlot({
+  RRS_radarchart(compute_RRS(applicant()), base_size=16)
+})
+```
+```{r RRS_radarchart_plot, out.width="100%", fig.width = 8, fig.height = 5}
+plotOutput("RRS_radarchart")
+```
 
 
 # Submitted works {orientation="columns"}
@@ -191,6 +262,7 @@ output$ref_table_output <- function(){
 }
 ```
 ```{r}
+#| fill: false
 tableOutput('ref_table_output')
 ```
 :::
@@ -230,9 +302,9 @@ We categorized papers into levels of involvement, based on the degrees of contri
 credit_inv_tab <- data.frame(
   "Involvement Level" = c("Very High", "High", "Medium", "Low"),
   "Definition" = c(
-    "(>=3 roles as *lead*) OR (>= 5 roles as (*lead* OR *equal*))",
-    "(1-2 roles as *lead*) OR (3-4 roles as *equal*)",
-    "(1-2 roles as *equal*) OR (>= 5 roles as *support*)",
+    "(>=3 roles as <i>lead</i>) OR (>= 5 roles as (<i>lead</i> OR <i>equal*))",
+    "(1-2 roles as <i>lead</i>) OR (3-4 roles as <i>equal</i>)",
+    "(1-2 roles as <i>equal</i>) OR (>= 5 roles as <i>support</i>)",
     "All other combinations"
   )
 )
@@ -247,7 +319,7 @@ output$credit_inv_table <- function(){
   credit_inv_tab$Publications[3] <- t1[t1$Var1 == "Medium", 2]
   
   
-  kable(credit_inv_tab) %>%
+  kable(credit_inv_tab, escape=FALSE) %>%
     kable_styling(font_size = 14, bootstrap_options = c("striped", "hover"))
 }
 ```
@@ -304,7 +376,7 @@ plotOutput('credit_wordcloud')
 
 ## Column1 HI-Papers {width=30%}
 
-### Row1 VB {height=20%}
+### Row1 VB_impact_papers {height=20%}
 ```{r vb_impact_papers}
 #| context: server
 output$vb_impact_papers <- function(){
@@ -437,6 +509,7 @@ output$prereg_repl <- renderPlotly({
   repl_tab <- table(applicant()$pubs$replication) |> as.data.frame() %>%
     mutate(perc = round(Freq*100/sum(Freq)))
   
+  # TODO: rev does not work yet
   BC_h(
     cat_labels=repl_tab$Var1,
     values=repl_tab$Freq,
@@ -453,9 +526,5 @@ plotlyOutput('prereg_repl')
 ```
 
 
-## Column2 {width=33%}
 
-
-
-## Column3 {width=33%}
 

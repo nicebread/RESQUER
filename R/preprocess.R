@@ -14,8 +14,24 @@
 #' @importFrom curl curl_fetch_memory
 #' @importFrom openalexR oa_fetch
 #' @importFrom utils URLencode
+#' @importFrom lubridate year
 #' @export
 preprocess <- function(applicant) {
+
+  # create missing indicator variables
+  ind_vars <- c("P_PreregisteredReplication")
+  for (i in ind_vars) {
+    if (!i %in% colnames(applicant$indicators)) applicant$indicators[, i] <- NA
+  }
+
+
+  # fix meta data
+  if (!is.null(applicant$meta$YearPhD)) {
+    applicant$meta$YearPhD <- as.numeric(applicant$meta$YearPhD)
+  } else {
+    applicant$meta$YearPhD <- NA
+  }
+  applicant$meta$AcademicAge <- year(Sys.Date()) - applicant$meta$YearPhD
 
   # Split the research outputs into types, reduce to suitable submissions
   applicant$pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
@@ -41,8 +57,12 @@ preprocess <- function(applicant) {
 
   applicant$indicators$title_links_html <- paste0("<a href='", applicant$indicators$doi_links, "'>", applicant$indicators$Title, "</a>")
 
+  if (!is.null(applicant$indicators$P_TopPaper_Select)) {
+    applicant$indicators$P_TopPaper_Select[is.na(applicant$indicators$P_TopPaper_Select)] <- FALSE
+  } else {
+    applicant$indicators$P_TopPaper_Select <- FALSE
+  }
 
-  applicant$indicators$P_TopPaper_Select[is.na(applicant$indicators$P_TopPaper_Select)] <- FALSE
 
   # CRediT preprocessing
   #--------------------------------------------------------

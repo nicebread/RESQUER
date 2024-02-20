@@ -1,7 +1,18 @@
+#' Compute Relative Rigor Score (RRS)
+#'
+#' This function computes a relative rigor score based on the indicators provided from an applicant.
+#'
+#' @param applicant The applicant data that has been preprocessed by the `read_RESQUE` function.
+#' @return A tibble containing the dimension (category), maximum points, and relative score for each category, suitable for creating a radar chart.
+#' @import dplyr
+#' @import stringr
+#' @import tibble
+#'
+#' @export
 compute_RRS <- function(applicant) {
 
-  # Which outputs should be scored?
-  score_list <- applicant()$scores$scores[applicant()$indicators$P_Suitable == "Yes"]
+  # Which outputs should be scored? At the moment, only publications
+  score_list <- applicant$scores$scores[applicant$indicators$P_Suitable == "Yes"]
   n_scorable <- length(score_list)
 
   scores_all <- get_indicators(sc=score_list)
@@ -23,7 +34,7 @@ compute_RRS <- function(applicant) {
     group_by(category) %>%
     summarise(
       points = sum(value),
-      overall_points = sum(max),
+      max_points = sum(max),
       rel_score = mean(rel_score),
     ) %>%
     filter(!is.na(category))
@@ -48,8 +59,9 @@ compute_RRS <- function(applicant) {
 
   radar_dat <- tibble(
     dimension = factor(scores_all_aggr$category),
-    max_points = scores_all_aggr$overall_points,
+    max_points = scores_all_aggr$max_points,
     rel_score = scores_all_aggr$rel_score,
+    # Alternative: Wedge width proportional to max_points
     #xstart = c(0, cumsum(max_points)[1:(length(max_points)-1)]),
     #xend = cumsum(max_points),
     xstart = 0:(categories_present-1),
@@ -57,5 +69,5 @@ compute_RRS <- function(applicant) {
     xmid = (xend-xstart)/2 + xstart
   )
 
-
+  return(radar_dat)
 }

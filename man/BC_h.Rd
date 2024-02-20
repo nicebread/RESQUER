@@ -13,6 +13,8 @@ BC_h(cat_labels, values, colors, title = "", rev = FALSE)
 
 \item{colors}{a character vector of colors for each category.}
 
+\item{title}{The title of the plot.}
+
 \item{rev}{Should the order of categories be reversed?}
 }
 \value{
@@ -26,7 +28,7 @@ BC_h(
   cat_labels=c("Yes", "No", "not applicable"),
   values=c(10, 2, 4),
   colors=c("#90c916", "#FED976", "#eeeeee"),
-  title="The publication contained a preregistered replication attempt (either direct/close or conceptual)")
+  title="The publication contained a preregistered replication attempt")
 
 BC_h(
   cat_labels=c("Yes", "No"),
