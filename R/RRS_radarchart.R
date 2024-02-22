@@ -3,6 +3,7 @@
 #' This function generates a radar chart that visualizes the rigor profile for a given applicant's data.
 #'
 #' @param radardat The output form the `compute_RRS` function.
+#' @param overall_score Show the overall score in the plot?
 #' @param base_size Base font size
 #'
 #' @return A radar chart visualizing the rigor profile for the applicant, showing the distribution of scores across different dimensions.
@@ -27,7 +28,7 @@
 #' @importFrom scales brewer_pal
 #'
 #' @export
-RRS_radarchart <- function(radar_dat, title="", base_size=14) {
+RRS_radarchart <- function(radar_dat, title="", overall_score=FALSE, base_size=14) {
   max_points <- sum(radar_dat$max_points)
 
   # overall score, equally weighted across all publications:
@@ -50,11 +51,17 @@ RRS_radarchart <- function(radar_dat, title="", base_size=14) {
     geom_text(x=max_points*0, y=0.54, label = "Top 10%", col="grey50", size=base_size/4, vjust=-0.2) +
     geom_text(x=max_points*0, y=0.63, label = "Top 1%" , col="grey50", size=base_size/4, vjust=-0.2) +
 
-    xlab("") + ylab("") + ggtitle(title, subtitle = paste0("Overall score = ", round(overall_score, 2))) +
+    xlab("") + ylab("") +
     scale_x_continuous(labels = NULL, breaks = NULL) + scale_y_continuous(labels = NULL, breaks = NULL, limits=c(0, 1)) + theme_void(base_size=base_size) +
     guides(fill=guide_legend("Rigor Dimension")) +
     scale_fill_brewer(palette="Set3") +
     geom_text(aes(x=xmid, y=0.75, label = dimension), vjust = -0.5, size=base_size/4)
+
+  if (overall_score == TRUE) {
+    p1 <- p1 + ggtitle(title, subtitle = paste0("Overall score = ", round(overall_score, 2)))
+  } else {
+    p1 <- p1 + ggtitle(title)
+  }
 
   p1
 }

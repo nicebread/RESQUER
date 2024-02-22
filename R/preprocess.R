@@ -16,6 +16,8 @@
 #' @importFrom utils URLencode
 #' @importFrom lubridate year
 #' @export
+
+# applicant <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
 preprocess <- function(applicant) {
 
   # create missing indicator variables
@@ -143,6 +145,8 @@ preprocess <- function(applicant) {
   applicant$BIP <- BIP
   rm(BIP)
 
+  applicant$BIP_n_papers <- sum(applicant$BIP$pop_class <= "C5", na.rm=TRUE)
+  applicant$BIP_n_papers_top10 <- sum(applicant$BIP$pop_class <= "C4", na.rm=TRUE)
 
   #----------------------------------------------------------------
   # Retrieve submitted works from OpenAlex
@@ -192,6 +196,18 @@ preprocess <- function(applicant) {
 
   applicant$ref_table <- ref_table
   rm(ref_table, ref_list)
+
+  #----------------------------------------------------------------
+  # Get TOP factor of the publication venues
+  #----------------------------------------------------------------
+
+  TOP <- read.csv(system.file("extdata", "top-factor.csv", package="RESQUER"))
+
+  applicant$TOP_journals <- TOP %>%
+    select(issn=Issn, Journal, Total) %>%
+    filter(issn %in% applicant$all_papers$issn_l)
+
+  rm(TOP)
 
   return(applicant)
 }

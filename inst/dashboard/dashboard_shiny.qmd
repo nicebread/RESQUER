@@ -44,8 +44,8 @@ library(lubridate)
 library(DT)
 
 # TODO: Read all files in folder; let users select the folder via dialog box
-  #json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
-  json_folder <- "/Users/felix/Documents/Gitlab/resque-ratings/json"
+  json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
+  #json_folder <- "/Users/felix/Documents/Gitlab/resque-ratings/json"
   json_files <- list.files(json_folder, pattern="*.json", full.names=TRUE)
   
   applicant_list <- list()
@@ -65,11 +65,15 @@ library(DT)
   
   #applicant <- function(x=9) applicant_list[[x]]
   
+  x <- sapply(applicant_list, "[", "meta")
+  fullmeta <- bind_rows(x)
+  
   # create overview table
   overview_tab <- data.frame(
-    FullName = sapply(applicant_list, "[", "meta") |> sapply("[", "FullName") |> unlist(),
-    YearPhD = sapply(applicant_list, "[", "meta") |> sapply("[", "YearPhD") |> unlist(),
-    AcademicAge = sapply(applicant_list, "[", "meta") |> sapply("[", "AcademicAge") |> unlist()
+    "Last Name" = fullmeta$LastName,
+    "First Name" = fullmeta$FirstName,
+    "Year PhD" = fullmeta$YearPhD,
+    "Academic Age" = fullmeta$AcademicAge
   )
 ```
 
@@ -154,13 +158,25 @@ value_box(
 )
 ```
 
+```{r vb_topFactor}
+#| context: server
+output$vb_topFactor <- function(){mean(applicant()$TOP_journals$Total, na.rm=TRUE) |> round()}
+```
+```{r vb_topFactor_output}
+value_box(
+  title = "Average Top Factor (max=30):",
+  value = textOutput("vb_topFactor"),
+  showcase = bs_icon("transparency")
+)
+```
+
 ## Column2 RRS Radar chart {width=70%}
 
 ```{r RRS_radarchart}
 #| context: server
 
 output$RRS_radarchart <- renderPlot({
-  RRS_radarchart(compute_RRS(applicant()), base_size=16)
+  RRS_radarchart(compute_RRS(applicant()), base_size=20)
 })
 ```
 ```{r RRS_radarchart_plot, out.width="100%", fig.width = 8, fig.height = 5}
@@ -216,8 +232,17 @@ tableOutput('Type_of_method_tab')
 
 ### Row Journal List {height=55%}
 ::: {.card title="Journals where the author published"}
-::: {style="font-size: 85%;"}
-According to [CoARA Commitment 3](https://coara.eu/agreement/the-commitments/), research outputs should neither be assessed based on the journal where it was published, nor on metrics relating to the publication venue. We list the journals where the candidate published to allow a judgement of the field and the relevancy of the author's publication profile for the position. Journals are ordered by frequency and then alphabetically:
+::: {style="font-size: 80%;"}
+<!-- TODO: Add infobox: According to [CoARA Commitment 3](https://coara.eu/agreement/the-commitments/), research outputs should neither be assessed based on the journal where it was published, nor on metrics relating to the publication venue: -->
+
+```{r vb_topFactor_text}
+#| context: server
+output$vb_topFactor_text <- function(){paste0("The journal list allows a judgement of the field and the relevancy of the author's publication profile for the position. Journals are ordered by frequency and then alphabetically. The average TOP factor was <b>",
+mean(applicant()$TOP_journals$Total, na.rm=TRUE) |> round(), "</b>.")}
+```
+```{r vb_topFactor_text_output}
+textOutput('vb_topFactor_text')
+```
 
 ```{r journal_list}
 #| context: server
@@ -380,7 +405,8 @@ plotOutput('credit_wordcloud')
 ```{r vb_impact_papers}
 #| context: server
 output$vb_impact_papers <- function(){
-  paste0(sum(applicant()$BIP$pop_class <= "C4", na.rm=TRUE), "/", sum(applicant()$BIP$pop_class <= "C5", na.rm=TRUE))
+  print(paste0("Requesting BIP for ", applicant()$meta$FullName, ": ", applicant()$BIP_n_papers))
+  paste0(applicant()$BIP_n_papers_top10, "/", applicant()$BIP_n_papers)
 }
 ```
 ```{r vb_impact_papers_output}
@@ -398,7 +424,7 @@ value_box(
 #| context: server
 
 output$HI_text <- function(){
-  paste0("From ", sum(applicant()$BIP$pop_class <= "C5", na.rm=TRUE), " papers of ", applicant()$meta$FullName, " that could be retrieved in the BIP! database, ", sum(applicant()$BIP$pop_class <= "C4", na.rm=TRUE), ifelse(nrow(applicant()$BIP %>% filter(pop_class <= "C4")) == 1, " was ", " were "), "in the top 10% popularity class of all papers or better.")
+  paste0("From ", applicant()$BIP_n_papers, " papers of ", applicant()$meta$FullName, " that could be retrieved in the BIP! database, ", applicant()$BIP_n_papers_top10, ifelse(applicant()$BIP_n_papers_top10 == 1, " was ", " were "), "in the top 10% popularity class of all papers or better.")
 }
 ```
 
@@ -526,5 +552,5 @@ plotlyOutput('prereg_repl')
 ```
 
 
-
+# Raw data
 
