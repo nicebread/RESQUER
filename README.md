@@ -14,6 +14,6 @@ Launch the dashboard with the three included demo profiles:
 
 ```
 library(quarto)
-quarto_render(system.file("dashboard", "dashboard_shiny.qmd", package="RESQUER"))
+quarto_serve(system.file("dashboard/dashboard_shiny.qmd", package="RESQUER"))
 ```
 
