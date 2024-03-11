@@ -102,7 +102,9 @@ evaluate_condition_in_context <- function(condition, context) {
 #' @export
 score <- function(research_output, verbose = FALSE) {
   # for debugging:
-  # research_output <- research_outputs[[3]]
+  # research_output <- research_outputs[[2]]
+
+  # load the scoring information from the current pack on github:
   scoring <- get_scoring_information(research_output)
 
   if (verbose == TRUE && is.null(scoring)) {
@@ -115,6 +117,7 @@ score <- function(research_output, verbose = FALSE) {
   reached_score <- 0
 
   for (indicator_index in seq_along(scoring)) {
+
     indicator <- scoring[[indicator_index]]
     # Get indicator name using the index
     indicator_name <- names(scoring)[indicator_index]
@@ -127,9 +130,17 @@ score <- function(research_output, verbose = FALSE) {
     # Skip this indicator if the 'not applicable' condition is met
     if (evaluate_condition_in_context(
       indicator$not_applicable,
-      research_output)) next
+      research_output)) {
+      if (verbose == TRUE) {
+        print(paste0("This indicator is not applicable; skipping."))
+      }
+      next;
+    }
 
     max_score <- max_score + indicator$max
+    if (verbose == TRUE) {
+      print(paste0("max_score now is: ", max_score))
+    }
 
     # Evaluate each condition:
     # if it is met, add the corresponding value to the score
@@ -211,7 +222,7 @@ score_all <- function(research_outputs, verbose = FALSE) {
 #'   \item{overall_score}{the average score of all scored research outputs}
 #' }
 #'
-#' @param path The file path where the research outputs are stored.
+#' @param file The file path where the research outputs are stored.
 #' @param verbose Logical value indicating whether to print additional information. Default is \code{FALSE}.
 #'
 #' @return A list with elements scores, scored_research_outputs, and overall_score.
@@ -224,8 +235,8 @@ score_all <- function(research_outputs, verbose = FALSE) {
 #' }
 #'
 #' @export
-score_all_from_file <- function(path, verbose = FALSE) {
-  research_outputs <- jsonlite::read_json(path)
+score_all_from_file <- function(file, verbose = FALSE) {
+  research_outputs <- jsonlite::read_json(file)
   score_all(research_outputs, verbose = verbose)
 }
 

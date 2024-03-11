@@ -33,7 +33,12 @@ preprocess <- function(applicant) {
   } else {
     applicant$meta$YearPhD <- NA
   }
-  applicant$meta$AcademicAge <- year(Sys.Date()) - applicant$meta$YearPhD
+  if (!is.null(applicant$meta$AcademicAgeBonus)) {
+    applicant$meta$AcademicAgeBonus <- as.numeric(applicant$meta$AcademicAgeBonus)
+  } else {
+    applicant$meta$AcademicAgeBonus <- 0
+  }
+  applicant$meta$AcademicAge <- year(Sys.Date()) - applicant$meta$YearPhD - applicant$meta$AcademicAgeBonus
 
   # Split the research outputs into types, reduce to suitable submissions
   applicant$pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
@@ -82,7 +87,7 @@ preprocess <- function(applicant) {
     ) %>%
     arrange(-LeadEqual, -Support)
 
-  applicant$credit$Role <- factor(applicant$credit$Role, levels = rev(rownames(applicant$credit_ordered)))
+  applicant$credit$Role_ordered <- factor(applicant$credit$Role, levels = rev(rownames(applicant$credit_ordered)))
 
   # The "CRediT involvement" categories
   # ---------------------------------------------------------------------
@@ -133,18 +138,7 @@ preprocess <- function(applicant) {
   # Call BIP! API for impact measures
   #----------------------------------------------------------------
 
-  doi_csv <- paste0(applicant$indicators$dois_normalized, collapse=",") |> URLencode(reserved=TRUE)
-  req <- curl_fetch_memory(paste0("https://bip-api.imsi.athenarc.gr/paper/scores/batch/", doi_csv))
-
-  BIP <- jsonlite::fromJSON(rawToChar(req$content))
-  BIP$pop_class <- factor(BIP$pop_class, levels=paste0("C", 1:5), ordered=TRUE)
-  BIP$inf_class <- factor(BIP$inf_class, levels=paste0("C", 1:5), ordered=TRUE)
-  BIP$imp_class <- factor(BIP$imp_class, levels=paste0("C", 1:5), ordered=TRUE)
-  colnames(BIP)[5] <- "three_year_cc"
-
-  applicant$BIP <- BIP
-  rm(BIP)
-
+  applicant$BIP <- get_BIP(applicant$indicators$dois_normalized)
   applicant$BIP_n_papers <- sum(applicant$BIP$pop_class <= "C5", na.rm=TRUE)
   applicant$BIP_n_papers_top10 <- sum(applicant$BIP$pop_class <= "C4", na.rm=TRUE)
 
@@ -208,6 +202,12 @@ preprocess <- function(applicant) {
     filter(issn %in% applicant$all_papers$issn_l)
 
   rm(TOP)
+
+  #----------------------------------------------------------------
+  # Compute Relative Rigor Score RRS
+  #----------------------------------------------------------------
+
+  applicant$RRS <- compute_RRS(applicant)
 
   return(applicant)
 }

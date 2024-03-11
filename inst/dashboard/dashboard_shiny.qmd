@@ -20,7 +20,7 @@ server: shiny
 # TODO: ggf. "Software" string anpassen
 required_json_version <- data.frame(
   type=c("Publication", "Data", "Software"),
-  required_version = c("0.2", "0.1", "0.1")
+  required_version = c("0.3.0", "0.1", "0.1")
 )
 
 library(RESQUER)
@@ -42,38 +42,53 @@ library(shiny)
 library(shinyalert)
 library(lubridate)
 library(DT)
+library(gt)
+library(purrr)
+library(OAmetrics)
+
+# R <- read_RESQUE(file="/Users/felix/LMU/Reviews/ZPID/W1 Professur 2024/RESQUE/resque_Jansen2.json")
 
 # TODO: Read all files in folder; let users select the folder via dialog box
   json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
   #json_folder <- "/Users/felix/Documents/Gitlab/resque-ratings/json"
+  
   json_files <- list.files(json_folder, pattern="*.json", full.names=TRUE)
   
   applicant_list <- list()
   applicant_names <- c()
   version_mismatch <- c()
+  version_df <- data.frame()
   for (i in 1:length(json_files)) {
     print(paste0("Preprocessing candidate ", i, "/", length(json_files)))
-    R <- read_RESQUE(json_files[i])
+    R <- read_RESQUE(file=json_files[i])
     applicant_list[[i]] <- preprocess(applicant=R)
     applicant_names[i] <- applicant_list[[i]]$meta$FullName
 
-    version_df <- merge(applicant_list[[i]]$indicators[, c("type", "version")], required_json_version, by="type")
-    version_mismatch[i] <- any(version_df$version != version_df$required_version)
+    version_df0 <- cbind(
+          applicant_list[[i]]$meta$FullName,
+          merge(applicant_list[[i]]$indicators[, c("type", "version")], required_json_version, by="type")
+        )
+    version_df <- rbind(version_df, version_df0)
+        
+    version_mismatch[i] <- any(version_df0$version != version_df$required_version)
   }
   applicant_position <- 1:length(json_files)
   names(applicant_position) <- applicant_names
   
-  #applicant <- function(x=9) applicant_list[[x]]
+  #applicant <- function(x=8) applicant_list[[x]]
   
   x <- sapply(applicant_list, "[", "meta")
   fullmeta <- bind_rows(x)
+  
+  RRS_overall_score <- sapply(applicant_list, "[", "RRS") |> sapply("[", "overall_score") |> unlist()
   
   # create overview table
   overview_tab <- data.frame(
     "Last Name" = fullmeta$LastName,
     "First Name" = fullmeta$FirstName,
     "Year PhD" = fullmeta$YearPhD,
-    "Academic Age" = fullmeta$AcademicAge
+    "Academic Age" = fullmeta$AcademicAge,
+    "RRS" = RRS_overall_score |> round(2)
   )
 ```
 
@@ -94,6 +109,8 @@ if (length(applicant_list) <= 8) {
 #| context: server
 
   if (any(version_mismatch)) {
+    print(paste0("Version mismatch:"))
+    print(version_df)
     shinyalert(
     title = "Version mismatch",
     text = paste0("Warning: The following applicants had a wrong version: ", paste0(applicant_names[version_mismatch], collapse=", ")),
@@ -119,11 +136,42 @@ applicant <- reactive({
 
 ```{r}
 #| context: server
-output$overview_table_output <- renderDT(overview_tab)
+#output$overview_table_output <- renderDT(overview_tab)
+
+# see https://rfortherestofus.com/2023/10/ggplots-in-gt-tables
+
+RRS_miniplot <- function(x) {
+  x <- as.numeric(x)
+  if (!is.null(x)) {
+    RRS_radarchart(applicant_list[[x]]$RRS, minimal=TRUE)
+  } else {
+    print("Skipping")
+  }
+}
+
+# first, add the candidate index to the table
+overview_tab$RRS_Chart <- 1:nrow(overview_tab)
+
+gt_tbl <-
+  overview_tab |>
+  gt() |> 
+  opt_interactive(use_compact_mode = TRUE)
+
+# now tell gt to transform the index column into the corresponding RRS plot
+gt_tbl <- gt_tbl |> 
+  text_transform(
+    locations = cells_body(columns = 'RRS_Chart'),
+    fn = function(column) {
+      map(column, RRS_miniplot) |>
+        ggplot_image(height = px(50))
+    }
+  ) 
+
+output$overview_table_output <- render_gt(gt_tbl)
 ```
 ```{r}
 #| fill: false
-DTOutput('overview_table_output')
+gt_output(outputId = "overview_table_output")
 ```
 
 # Candidate Summary {orientation="columns"}
@@ -170,13 +218,21 @@ value_box(
 )
 ```
 
+
 ## Column2 RRS Radar chart {width=70%}
 
+How to read the chart:
+
+```{r RRS_radarchart_input}
+#| content: card-toolbar
+checkboxInput(inputId="RRS_overall_score", "Show overall score?", value = FALSE)
+checkboxInput(inputId="sectors_type", "Weighted sectors?", value = TRUE)
+```
 ```{r RRS_radarchart}
 #| context: server
 
 output$RRS_radarchart <- renderPlot({
-  RRS_radarchart(compute_RRS(applicant()), base_size=20)
+  RRS_radarchart(compute_RRS(applicant(), sectors=ifelse(input$sectors_type, "weighted", "equal")), base_size=20, overall_score=input$RRS_overall_score)
 })
 ```
 ```{r RRS_radarchart_plot, out.width="100%", fig.width = 8, fig.height = 5}
@@ -237,8 +293,8 @@ tableOutput('Type_of_method_tab')
 
 ```{r vb_topFactor_text}
 #| context: server
-output$vb_topFactor_text <- function(){paste0("The journal list allows a judgement of the field and the relevancy of the author's publication profile for the position. Journals are ordered by frequency and then alphabetically. The average TOP factor was <b>",
-mean(applicant()$TOP_journals$Total, na.rm=TRUE) |> round(), "</b>.")}
+output$vb_topFactor_text <- function(){paste0("The journal list allows a judgement of the field and the relevancy of the author's publication profile for the position. Journals are ordered by frequency and then alphabetically. The average TOP factor was ",
+mean(applicant()$TOP_journals$Total, na.rm=TRUE) |> round(), ".")}
 ```
 ```{r vb_topFactor_text_output}
 textOutput('vb_topFactor_text')
@@ -263,15 +319,18 @@ textOutput('journal_list_output')
 
 
 
-## Col2: Ref_table {width=70%}
+## Col2: Ref_table {width=70%} 
 
+### Row {height=20% .fill}
 ::: {.card title="Submitted works"}
-**Note:**
-
+::: {style="font-size: 80%;"}
 - Author order has been re-arranged to be alphabetical. Please infer the author's contributions from the CRediT taxonomy.
 - Journal names have been removed.
 - ⭐️ = selected as one of the best works.
+:::
+:::
 
+### Row {height=80%}
 ```{r}
 #| context: server
 
@@ -290,9 +349,6 @@ output$ref_table_output <- function(){
 #| fill: false
 tableOutput('ref_table_output')
 ```
-:::
-
-
 
 
 # Author contributions {orientation="columns"}
@@ -354,15 +410,17 @@ tableOutput("credit_inv_table")
 :::
 
 
-## Column2 {height=60%}
+## Column2 credit_barchart {height=60%}
 
 ### Column {.tabset}
 
 ```{r credit_barchart}
 #| context: server
 
+# TODO: Keep standard order
 output$credit_barchart <- renderPlot({
-  p <- ggplot(applicant()$credit, aes(x = Role, fill = Degree)) +
+  dat <- applicant()$credit
+  p <- ggplot(dat, aes(x = Role, fill = Degree)) +
       geom_bar(stat = "count") +
       coord_flip() +
       scale_fill_manual(values = rev(c("grey90", "indianred1", "khaki2", "green3", "green4")), breaks = rev(c("not applicable", "NoRole", "Support", "Equal", "Lead"))) +
@@ -554,3 +612,13 @@ plotlyOutput('prereg_repl')
 
 # Raw data
 
+```{r raw_data}
+#| context: server
+
+output$raw_data <- renderPrint({
+  applicant()
+})
+```
+```{r raw_data_output}
+verbatimTextOutput("raw_data")
+```

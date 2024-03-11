@@ -38,7 +38,7 @@ get_indicators <- function(sc, pattern=".*") {
   res <- data.frame()
   for (i in 1:length(sc)) {
     ind <- sc[[i]]$indicators
-    if (!is.null(ind) & is.list(ind)) {
+    if (!is.null(ind) & is.list(ind) & (length(ind) > 0)) {
       res <- rbind(res, tibble(
         output = i,
         indicator = names(ind),

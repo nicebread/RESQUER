@@ -1,0 +1,95 @@
+---
+title: "How to read the radarcharts of the relative rigor score (RRS)"
+embed-resources: true
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{RESQUE_profile}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo=FALSE,
+  message=FALSE,
+  warning=FALSE
+)
+```
+
+```{r setup}
+library(RESQUER)
+library(dplyr)
+```
+
+The general philosophy of RESQUE is: It doesn't matter so much what kind of research you do - but when you do it, you should do it in a high quality.
+The radar chart helps you to see 
+
+- The **width** of each sector corresponds to the **maximal number of rigor points** one could gain. If you often opt-out of certain indicators, then the maximal points get reduced.
+- The **colored part** of each sector shows the **achieved rigor points**.
+
+In the following examples, we will focus on the **Open Data** sector of the radar charts.
+
+## "Rarely do it - but when we do it, we do it the right way."
+
+This candidate had nearly no chance to gain open data points, which can be seen from the very narrow sector.
+For example, he submitted many methodological/purely theoretical papers which had no data, or had convincing justifications that the data strictly could not be openly released.
+
+But in the few cases where he could provide open data, he did it in a perfect way (i.e., according to all FAIR criteria and the other indicators related to open data): The narrow sector has 100% of points.
+
+```{r, out.width=400, out.height=400, dpi=200}
+dat1 <- tibble(
+  dimension = c("Open Data", "Open Materials", "Preregistration", "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
+  max_points = c(1, 14, 16, 12, 13),
+  rel_score=c(1, 0.3, 0.1, 0.2, 0.3),
+  xstart = c(0, cumsum(head(max_points, -1))),
+  xend = cumsum(max_points),
+  xmid = (xstart + xend)/2
+)
+RRS <- list(radar_dat=dat1, overall_score=TRUE, n_papers=10)
+RRS_radarchart(RRS, show.legend = FALSE, show.n_pub = FALSE)
+```
+
+
+## "A lot of missed chances: You could have been better."
+
+In this profile, a lot of open data points could have been gained: The Open Data sector is very broad.
+But only very few of these potential points have actually been gained.
+
+```{r, out.width=400, out.height=400, dpi=200}
+dat1 <- tibble(
+  dimension = c("Open Data", "Open Materials", "Preregistration", "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
+  max_points = c(40, 14, 16, 12, 13),
+  rel_score=c(0.1, 0.4, 0.5, 0.7, 0.5),
+  xstart = c(0, cumsum(head(max_points, -1))),
+  xend = cumsum(max_points),
+  xmid = (xstart + xend)/2
+)
+RRS <- list(radar_dat=dat1, overall_score=TRUE, n_papers=10)
+RRS_radarchart(RRS, show.legend = FALSE, show.n_pub = FALSE)
+```
+
+## "Demonstrating expertise: A lot of potential that has been realized"
+
+This candidate had many opportunities of providing open data (the sector is very broad), and she did it in an excellent way.
+This is true expertise: Having both a lot of experience *and* doing it in a proper way.
+
+```{r, out.width=400, out.height=400, dpi=200}
+dat1 <- tibble(
+  dimension = c("Open Data", "Open Materials", "Preregistration", "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
+  max_points = c(40, 14, 16, 12, 13),
+  rel_score=c(0.9, 0.4, 0.5, 0.7, 0.5),
+  xstart = c(0, cumsum(head(max_points, -1))),
+  xend = cumsum(max_points),
+  xmid = (xstart + xend)/2
+)
+RRS <- list(radar_dat=dat1, overall_score=TRUE, n_papers=10)
+RRS_radarchart(RRS, show.legend = FALSE, show.n_pub = FALSE)
+```
+
+
+## Summary
+
+The chart shows both the *quantity* of points that could have been gained, and the *quality* of the practice.
+If you are looking for a candidate that has a lot of experience in a certain skill *and* does it in a good way, the respective sector should be both broad *and* filled.

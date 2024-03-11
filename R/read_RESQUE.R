@@ -1,14 +1,14 @@
-# jsonpath <- system.file("extdata", "resque_Felix2.json", package="RESQUER")
+# file <- system.file("extdata", "resque_Felix2.json", package="RESQUER")
 
 #' Read and preprocess a single RESQUE JSON file
 #'
-#' @param jsonpath Path to RESQUE JSON file
+#' @param file Path to RESQUE JSON file
 #' @import dplyr
 #' @import stringr
 #' @import tidyr
 #' @export
-read_RESQUE <- function(jsonpath) {
-  dat0 <- read_json(jsonpath, simplifyVector = TRUE)
+read_RESQUE <- function(file) {
+  dat0 <- read_json(file, simplifyVector = TRUE)
 
   meta <- dat0[1, 1:16]
   dat <- dat0[-1, ]
@@ -22,7 +22,7 @@ read_RESQUE <- function(jsonpath) {
   dat$queryConfig <- NULL
 
   # read the scores
-  scores <- score_all_from_file(path=jsonpath)
+  scores <- score_all_from_file(file=file)
 
   # remove the first element: This is the meta-information which has no scores
   # Now each list entry is one publication, in the same order as in `dat`
