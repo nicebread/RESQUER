@@ -72,23 +72,26 @@ library(OAmetrics)
         
     version_mismatch[i] <- any(version_df0$version != version_df$required_version)
   }
-  applicant_position <- 1:length(json_files)
+  applicant_position <- applicant_ID <- 1:length(json_files)
   names(applicant_position) <- applicant_names
+  names(applicant_ID) <- applicant_ID
+
   
-  #applicant <- function(x=8) applicant_list[[x]]
+  #applicant <- function(x=2) applicant_list[[x]]
   
   x <- sapply(applicant_list, "[", "meta")
   fullmeta <- bind_rows(x)
   
   RRS_overall_score <- sapply(applicant_list, "[", "RRS") |> sapply("[", "overall_score") |> unlist()
   
-  # create overview table
+  # create overview table (this is the static version; overview_tab2() is reactive and gets updated)
   overview_tab <- data.frame(
     "Last Name" = fullmeta$LastName,
     "First Name" = fullmeta$FirstName,
     "Year PhD" = fullmeta$YearPhD,
     "Academic Age" = fullmeta$AcademicAge,
-    "RRS" = RRS_overall_score |> round(2)
+    "RRS" = RRS_overall_score |> round(2),
+    "RRS_Chart" = 1:nrow(fullmeta) # add the candidate index to the table (this is replaced by the mini plot)
   )
 ```
 
@@ -97,12 +100,13 @@ library(OAmetrics)
 # {.toolbar}
 
 ```{r}
+checkboxInput(inputId="all_anonymous", "Make anonymous", value = TRUE)
+
 if (length(applicant_list) <= 8) {
-  radioButtons(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1, inline=TRUE)  
+  radioButtons(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1, inline=TRUE)
 } else {
   selectInput(inputId='applicant_name', label='Name of applicant', choices=applicant_position, selected=1)
-}
-
+}  
 ```
 
 ```{r}
@@ -127,7 +131,25 @@ if (length(applicant_list) <= 8) {
   }
 
 applicant <- reactive({
-  return(applicant_list[[as.numeric(input$applicant_name)]])
+  applicant_list[[as.numeric(input$applicant_name)]]
+})
+
+overview_tab2 <- reactive({
+  ot2 <- overview_tab
+  if (input$all_anonymous == TRUE) {
+    ot2[, 1] <- "- redacted -"
+    ot2[, 2] <- "- redacted -"
+  }
+  return(ot2)
+})
+
+observeEvent(input$all_anonymous, {
+ if (input$all_anonymous == TRUE) {
+  updateRadioButtons(inputId = "applicant_name", label='Applicant ID: ', choices = applicant_ID, inline=TRUE) 
+ } else {
+   updateRadioButtons(inputId = "applicant_name", label='Name of applicant: ', choices = applicant_position, inline=TRUE)
+ }
+
 })
 ```
 
@@ -149,16 +171,14 @@ RRS_miniplot <- function(x) {
   }
 }
 
-# first, add the candidate index to the table
-overview_tab$RRS_Chart <- 1:nrow(overview_tab)
-
-gt_tbl <-
-  overview_tab |>
+gt_tbl <- reactive({
+  gt_table <- 
+  overview_tab2() |>
   gt() |> 
   opt_interactive(use_compact_mode = TRUE)
 
 # now tell gt to transform the index column into the corresponding RRS plot
-gt_tbl <- gt_tbl |> 
+gt_table <- gt_table |> 
   text_transform(
     locations = cells_body(columns = 'RRS_Chart'),
     fn = function(column) {
@@ -166,8 +186,9 @@ gt_tbl <- gt_tbl |>
         ggplot_image(height = px(50))
     }
   ) 
+})
 
-output$overview_table_output <- render_gt(gt_tbl)
+output$overview_table_output <- render_gt(gt_tbl())
 ```
 ```{r}
 #| fill: false
@@ -180,7 +201,6 @@ gt_output(outputId = "overview_table_output")
 
 ```{r vb_yearPhD}
 #| context: server
-reactive({print(applicant()$meta$YearPhD)})
 output$vb_YearPhD <- function(){applicant()$meta$YearPhD}
 ```
 ```{r vb_yearPhD_output}
@@ -335,14 +355,26 @@ textOutput('journal_list_output')
 #| context: server
 
 output$ref_table_output <- function(){
-  # Disable Quarto post-processing for this table
+  outtab <- applicant()$ref_table
+  
+  if (input$all_anonymous == TRUE) {
+    kable(outtab[, -2], format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
+    column_spec(1, width = "40%") %>% 
+    column_spec(2, width = "20%") %>% 
+    column_spec(3, width = "40%") %>% 
+    kable_styling(font_size = 12, bootstrap_options = c("striped", "hover"))
+  } else {
+    # Disable Quarto post-processing for this table
   # (otherwise column_spec does not work)
-  kable(applicant()$ref_table, format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
+  kable(outtab, format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
     column_spec(1, width = "25%") %>% 
     column_spec(2, width = "25%") %>% 
     column_spec(3, width = "10%") %>% 
     column_spec(4, width = "40%") %>%
     kable_styling(font_size = 12, bootstrap_options = c("striped", "hover"))
+  }
+  
+  
 }
 ```
 ```{r}
@@ -463,7 +495,6 @@ plotOutput('credit_wordcloud')
 ```{r vb_impact_papers}
 #| context: server
 output$vb_impact_papers <- function(){
-  print(paste0("Requesting BIP for ", applicant()$meta$FullName, ": ", applicant()$BIP_n_papers))
   paste0(applicant()$BIP_n_papers_top10, "/", applicant()$BIP_n_papers)
 }
 ```

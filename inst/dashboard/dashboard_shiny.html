@@ -72,6 +72,16 @@ ul.task-list li input[type="checkbox"] {
 <!-- How to include in package: See https://spencerschien.info/post/r_for_nonprofits/quarto_template/ -->
 <div class="html-fill-item html-fill-container dashboard-toolbar-container toolbar-toplevel"><div class="toolbar html-fill-container" data-layout="flow">
 <div class="cell-output-display">
+<div class="form-group shiny-input-container">
+<div class="checkbox">
+<label>
+<input id="all_anonymous" type="checkbox" class="shiny-input-checkbox" checked="checked">
+<span>Make anonymous</span>
+</label>
+</div>
+</div>
+</div>
+<div class="cell-output-display">
 <div id="applicant_name" class="form-group shiny-input-radiogroup shiny-input-container shiny-input-container-inline" role="radiogroup" aria-labelledby="applicant_name-label">
 <label class="control-label" id="applicant_name-label" for="applicant_name">Name of applicant</label>
 <div class="shiny-options-group">
@@ -179,7 +189,7 @@ grid-auto-rows: minmax(0, 1fr);">
 </bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
 <div class="card cell html-fill-item html-fill-container bslib-card" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
 <div class="card-header dashboard-card-no-title">
-<div class="card-toolbar html-fill-item html-fill-container" data-target-position="header" data-target-element="next">
+<div class="card-toolbar html-fill-item html-fill-container" data-target-element="next" data-target-position="header">
 <div class="cell-output-display html-fill-item html-fill-container">
 <div class="form-group shiny-input-container html-fill-item html-fill-container">
 <div class="checkbox html-fill-item html-fill-container">
@@ -436,7 +446,7 @@ Computation of the Popularity metric
 </bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
 </div>
 </div><div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, max-content); grid-auto-columns: minmax(0, 1fr);">
-<div class="card cell html-fill-item html-fill-container bslib-card" data-fill="false" data-title="Highly popular papers" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card cell html-fill-item html-fill-container bslib-card" data-title="Highly popular papers" data-fill="false" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
 <div class="card-header"><div class="card-title html-fill-item html-fill-container">Highly popular papers</div></div>
 <div class="card-body html-fill-item html-fill-container">
 <div class="cell-output-display html-fill-item html-fill-container no-overflow-x">
@@ -563,23 +573,26 @@ library(OAmetrics)
         
     version_mismatch[i] <- any(version_df0$version != version_df$required_version)
   }
-  applicant_position <- 1:length(json_files)
+  applicant_position <- applicant_ID <- 1:length(json_files)
   names(applicant_position) <- applicant_names
+  names(applicant_ID) <- applicant_ID
+
   
-  #applicant <- function(x=8) applicant_list[[x]]
+  #applicant <- function(x=2) applicant_list[[x]]
   
   x <- sapply(applicant_list, "[", "meta")
   fullmeta <- bind_rows(x)
   
   RRS_overall_score <- sapply(applicant_list, "[", "RRS") |> sapply("[", "overall_score") |> unlist()
   
-  # create overview table
+  # create overview table (this is the static version; overview_tab2() is reactive and gets updated)
   overview_tab <- data.frame(
     "Last Name" = fullmeta$LastName,
     "First Name" = fullmeta$FirstName,
     "Year PhD" = fullmeta$YearPhD,
     "Academic Age" = fullmeta$AcademicAge,
-    "RRS" = RRS_overall_score |> round(2)
+    "RRS" = RRS_overall_score |> round(2),
+    "RRS_Chart" = 1:nrow(fullmeta) # add the candidate index to the table (this is replaced by the mini plot)
   )
 </script>
  
@@ -603,7 +616,25 @@ library(OAmetrics)
   }
 
 applicant <- reactive({
-  return(applicant_list[[as.numeric(input$applicant_name)]])
+  applicant_list[[as.numeric(input$applicant_name)]]
+})
+
+overview_tab2 <- reactive({
+  ot2 <- overview_tab
+  if (input$all_anonymous == TRUE) {
+    ot2[, 1] <- "- redacted -"
+    ot2[, 2] <- "- redacted -"
+  }
+  return(ot2)
+})
+
+observeEvent(input$all_anonymous, {
+ if (input$all_anonymous == TRUE) {
+  updateRadioButtons(inputId = "applicant_name", label='Applicant ID: ', choices = applicant_ID, inline=TRUE) 
+ } else {
+   updateRadioButtons(inputId = "applicant_name", label='Name of applicant: ', choices = applicant_position, inline=TRUE)
+ }
+
 })
 </script>
  
@@ -621,16 +652,14 @@ RRS_miniplot <- function(x) {
   }
 }
 
-# first, add the candidate index to the table
-overview_tab$RRS_Chart <- 1:nrow(overview_tab)
-
-gt_tbl <-
-  overview_tab |>
+gt_tbl <- reactive({
+  gt_table <- 
+  overview_tab2() |>
   gt() |> 
   opt_interactive(use_compact_mode = TRUE)
 
 # now tell gt to transform the index column into the corresponding RRS plot
-gt_tbl <- gt_tbl |> 
+gt_table <- gt_table |> 
   text_transform(
     locations = cells_body(columns = 'RRS_Chart'),
     fn = function(column) {
@@ -638,12 +667,12 @@ gt_tbl <- gt_tbl |>
         ggplot_image(height = px(50))
     }
   ) 
+})
 
-output$overview_table_output <- render_gt(gt_tbl)
+output$overview_table_output <- render_gt(gt_tbl())
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-reactive({print(applicant()$meta$YearPhD)})
 output$vb_YearPhD <- function(){applicant()$meta$YearPhD}
 </script>
  
@@ -710,14 +739,26 @@ output$journal_list_output <- function(){
  
 <script type="application/shiny-prerendered" data-context="server">
 output$ref_table_output <- function(){
-  # Disable Quarto post-processing for this table
+  outtab <- applicant()$ref_table
+  
+  if (input$all_anonymous == TRUE) {
+    kable(outtab[, -2], format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
+    column_spec(1, width = "40%") %>% 
+    column_spec(2, width = "20%") %>% 
+    column_spec(3, width = "40%") %>% 
+    kable_styling(font_size = 12, bootstrap_options = c("striped", "hover"))
+  } else {
+    # Disable Quarto post-processing for this table
   # (otherwise column_spec does not work)
-  kable(applicant()$ref_table, format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
+  kable(outtab, format = "html", escape = FALSE, table.attr = "quarto-disable-processing=true") %>% 
     column_spec(1, width = "25%") %>% 
     column_spec(2, width = "25%") %>% 
     column_spec(3, width = "10%") %>% 
     column_spec(4, width = "40%") %>%
     kable_styling(font_size = 12, bootstrap_options = c("striped", "hover"))
+  }
+  
+  
 }
 </script>
  
@@ -784,7 +825,6 @@ output$credit_wordcloud <- renderPlot({
  
 <script type="application/shiny-prerendered" data-context="server">
 output$vb_impact_papers <- function(){
-  print(paste0("Requesting BIP for ", applicant()$meta$FullName, ": ", applicant()$BIP_n_papers))
   paste0(applicant()$BIP_n_papers_top10, "/", applicant()$BIP_n_papers)
 }
 </script>
