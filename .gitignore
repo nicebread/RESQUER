@@ -53,7 +53,4 @@ _test
 docs
 inst/doc
 
-inst/dashboard/dashboard_files
-inst/dashboard/dashtest_files
-inst/dashboard/dashshiny_files
 inst/dashboard/dashboard_shiny_files

@@ -1,4 +1,4 @@
-# file <- system.file("extdata", "resque_Felix2.json", package="RESQUER")
+# file <- system.file("extdata", "resque_Schönbrodt.json", package="RESQUER")
 
 #' Read and preprocess a single RESQUE JSON file
 #'

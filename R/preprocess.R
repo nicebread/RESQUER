@@ -17,7 +17,7 @@
 #' @importFrom lubridate year
 #' @export
 
-# applicant <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
+# applicant <- read_RESQUE(system.file("extdata", "resque_Schönbrodt.json", package="RESQUER"))
 preprocess <- function(applicant) {
 
   # create missing indicator variables

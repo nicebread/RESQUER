@@ -547,10 +547,8 @@ library(gt)
 library(purrr)
 library(OAmetrics)
 
-# R <- read_RESQUE(file="/Users/felix/LMU/Reviews/ZPID/W1 Professur 2024/RESQUE/resque_Jansen2.json")
-
 # TODO: Read all files in folder; let users select the folder via dialog box
-  json_folder <- "/Users/felix/Documents/Github/RESQUE/profile/data"
+  json_folder <- system.file("extdata/demo_profiles", package="RESQUER")
   #json_folder <- "/Users/felix/Documents/Gitlab/resque-ratings/json"
   
   json_files <- list.files(json_folder, pattern="*.json", full.names=TRUE)
@@ -831,7 +829,7 @@ output$vb_impact_papers <- function(){
  
 <script type="application/shiny-prerendered" data-context="server">
 output$HI_text <- function(){
-  paste0("From ", applicant()$BIP_n_papers, " papers of ", applicant()$meta$FullName, " that could be retrieved in the BIP! database, ", applicant()$BIP_n_papers_top10, ifelse(applicant()$BIP_n_papers_top10 == 1, " was ", " were "), "in the top 10% popularity class of all papers or better.")
+  paste0("From ", applicant()$BIP_n_papers, " papers that could be retrieved in the BIP! database, ", applicant()$BIP_n_papers_top10, ifelse(applicant()$BIP_n_papers_top10 == 1, " was ", " were "), "in the top 10% popularity class of all papers or better.")
 }
 </script>
  

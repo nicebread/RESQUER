@@ -4,10 +4,12 @@
 \alias{compute_RRS}
 \title{Compute Relative Rigor Score (RRS)}
 \usage{
-compute_RRS(applicant)
+compute_RRS(applicant, sectors = c("weighted", "equal"))
 }
 \arguments{
 \item{applicant}{The applicant data that has been preprocessed by the \code{read_RESQUE} function.}
+
+\item{sectors}{Should sectors be all equally sized ("equal") or weighted by the maximum sum of attainable points in each category ("weighted")?}
 }
 \value{
 A tibble containing the dimension (category), maximum points, and relative score for each category, suitable for creating a radar chart.

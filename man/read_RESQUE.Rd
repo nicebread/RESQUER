@@ -4,10 +4,10 @@
 \alias{read_RESQUE}
 \title{Read and preprocess a single RESQUE JSON file}
 \usage{
-read_RESQUE(jsonpath)
+read_RESQUE(file)
 }
 \arguments{
-\item{jsonpath}{Path to RESQUE JSON file}
+\item{file}{Path to RESQUE JSON file}
 }
 \description{
 Read and preprocess a single RESQUE JSON file

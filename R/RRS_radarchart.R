@@ -3,6 +3,7 @@
 #' This function generates a radar chart that visualizes the rigor profile for a given applicant's data.
 #'
 #' @param RRS The output from the `compute_RRS` function.
+#' @param title The main title for the plot.
 #' @param overall_score Show the overall score in the plot?
 #' @param base_size Base font size
 #' @param minimal If TRUE, a very simple chart without any legends is drawn
@@ -17,7 +18,8 @@
 #'
 #' @examples
 #' radar_dat <- data.frame(
-#'   dimension = c("Open Data", "Open Materials", "Preregistration", "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
+#'   dimension = c("Open Data", "Open Materials", "Preregistration",
+#'     "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
 #'   max_points = rep(10, 5),
 #'   rel_score=c(0.5, 0.3, 0.1, 0.6, 0.2),
 #'   xstart = 0:4,

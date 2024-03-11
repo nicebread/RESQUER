@@ -4,12 +4,30 @@
 \alias{RRS_radarchart}
 \title{Radar Chart for Relative Rigor Score}
 \usage{
-RRS_radarchart(radar_dat, title = "", base_size = 14)
+RRS_radarchart(
+  RRS,
+  title = "",
+  overall_score = FALSE,
+  minimal = FALSE,
+  show.legend = TRUE,
+  show.n_pub = TRUE,
+  base_size = 14
+)
 }
 \arguments{
-\item{base_size}{Base font size}
+\item{RRS}{The output from the \code{compute_RRS} function.}
 
-\item{radardat}{The output form the \code{compute_RRS} function.}
+\item{title}{The main title for the plot.}
+
+\item{overall_score}{Show the overall score in the plot?}
+
+\item{minimal}{If TRUE, a very simple chart without any legends is drawn}
+
+\item{show.legend}{Show the legend to the right?}
+
+\item{show.n_pub}{Show the number of publication on which the chart is based?}
+
+\item{base_size}{Base font size}
 }
 \value{
 A radar chart visualizing the rigor profile for the applicant, showing the distribution of scores across different dimensions.
@@ -19,13 +37,15 @@ This function generates a radar chart that visualizes the rigor profile for a gi
 }
 \examples{
 radar_dat <- data.frame(
-  dimension = c("Open Data", "Open Materials", "Preregistration", "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
+  dimension = c("Open Data", "Open Materials", "Preregistration",
+    "Reproducible Code \n& Verification", "Theorizing \n& Formal Modeling"),
   max_points = rep(10, 5),
   rel_score=c(0.5, 0.3, 0.1, 0.6, 0.2),
   xstart = 0:4,
   xend = 1:5,
   xmid=0:4 + 0.5
 )
-RRS_radarchart(radar_dat)
+RRS <- list(radar_dat=radar_dat, overall_score=0.5, n_papers=4)
+RRS_radarchart(RRS)
 
 }

@@ -4,10 +4,10 @@
 \alias{score_all_from_file}
 \title{Score all research outputs from a file}
 \usage{
-score_all_from_file(path, verbose = FALSE)
+score_all_from_file(file, verbose = FALSE)
 }
 \arguments{
-\item{path}{The file path where the research outputs are stored.}
+\item{file}{The file path where the research outputs are stored.}
 
 \item{verbose}{Logical value indicating whether to print additional information. Default is \code{FALSE}.}
 }

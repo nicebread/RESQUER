@@ -36,8 +36,7 @@ library(tibble)
 
 ```{r}
 
-applicant <- read_RESQUE(system.file("extdata", "resque_Felix2.json", package="RESQUER"))
-#applicant <- read_RESQUE("/Users/felix/Documents/Github/RESQUE/profile/data/resque_1696782133298.json")
+applicant <- read_RESQUE(system.file("extdata", "resque_Schönbrodt.json", package="RESQUER"))
 
 # Split the research outputs into types, reduce to suitable submissions
 pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")

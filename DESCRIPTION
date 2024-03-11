@@ -20,10 +20,12 @@ Imports:
   magrittr,
   openalexR,
   scales,
-  tibble
+  tibble,
+  lubridate
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Suggests: 
     knitr,
     rmarkdown
 VignetteBuilder: knitr
+URL: https://nicebread.github.io/RESQUER/
