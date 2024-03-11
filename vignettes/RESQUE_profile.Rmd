@@ -3,7 +3,7 @@ title: "Exemplary RESQUE Profile"
 embed-resources: true
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{RESQUE_profile}
+  %\VignetteIndexEntry{Exemplary RESQUE Profile}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -36,7 +36,7 @@ library(tibble)
 
 ```{r}
 
-applicant <- read_RESQUE(system.file("extdata", "resque_Schönbrodt.json", package="RESQUER"))
+applicant <- read_RESQUE(system.file("extdata/demo_profiles/resque_Schönbrodt.json", package="RESQUER"))
 
 # Split the research outputs into types, reduce to suitable submissions
 pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")

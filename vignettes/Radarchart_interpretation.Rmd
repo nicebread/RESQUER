@@ -3,7 +3,7 @@ title: "How to read the radarcharts of the relative rigor score (RRS)"
 embed-resources: true
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Relative Rigor Score: Interpretation of the Radarchart}
+  %\VignetteIndexEntry{How to read the radarcharts of the relative rigor score (RRS)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
