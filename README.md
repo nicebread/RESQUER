@@ -3,10 +3,11 @@ An R package for analyzing the [RESQUE Research Quality Evaluation](https://nice
 
 ## How to preview the dashboard:
 
-Install the development version from GitHub with:
+Install the development versions from GitHub with:
 
 ```
 install.packages("remotes")
+remotes::install_github("nicebread/OAmetrics")
 remotes::install_github("nicebread/RESQUER")
 ```
 
