@@ -1,9 +1,9 @@
 Package: RESQUER
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Enrich, analyse and visualize data from the RESQUE rating scheme
+Version: 0.1.1
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+    person("Felix D.", "Schönbrodt", , "felix.schoenbrodt@psy.lmu.de", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-8282-3910"))
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -28,6 +28,7 @@ Suggests:
     knitr,
     rmarkdown,
     forcats,
-    wordcloud
+    wordcloud,
+    OAmetrics (>= 0.3.1)
 VignetteBuilder: knitr
 URL: https://nicebread.github.io/RESQUER/

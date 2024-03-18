@@ -180,7 +180,7 @@ preprocess <- function(applicant) {
   }
 
   ref_table <- data.frame(
-    Title=paste0(ifelse(ref_list$P_TopPaper_Select, "⭐️", ""), ref_list$title_links_html),
+    Title=paste0(ifelse(ref_list$P_TopPaper_Select, "\u2B50", ""), ref_list$title_links_html),
     Authors = names_vec,
     ref_list$CRediT_involvement,
     ref_list$CRediT_involvement_roles

@@ -1,5 +1,3 @@
-#' @import ggplot2
-#' @export
 theme_singlebar <- function(base_size = 12, base_family = "") {
   theme_minimal(base_size = base_size, base_family = base_family) + theme(
   axis.text = element_blank(),       # Remove axis text

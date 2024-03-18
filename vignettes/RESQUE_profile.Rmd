@@ -36,7 +36,7 @@ library(tibble)
 
 ```{r}
 
-applicant <- read_RESQUE(system.file("extdata/demo_profiles/resque_Schönbrodt.json", package="RESQUER"))
+applicant <- read_RESQUE(system.file("extdata/demo_profiles/resque_Schoenbrodt.json", package="RESQUER"))
 
 # Split the research outputs into types, reduce to suitable submissions
 pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
@@ -495,7 +495,7 @@ IV_tab <- table(IV$IV) |> prop.table() |> as.data.frame() %>%
   scale_y_discrete(expand=expand_scale(add = c(10, 10))) +
   scale_fill_manual(values = rev(c("grey80", "indianred1", "darkseagreen1", "darkolivegreen2", "chartreuse2", "green1")), breaks=rev(c("not applicable", "No", "Workflow/technical repro", "Main results verified", "All results verified", "Independent Reimplementation")), guide=FALSE) +
   geom_text(aes(label = paste0(gsub(" ", "\n", Var1), ":\n", round(perc), "%")), position = position_stack(vjust = 0.5), size=6) +
-  theme_singlebar() + coord_flip()
+  RESQUER:::theme_singlebar() + coord_flip()
 ```
 
 
@@ -522,7 +522,7 @@ prereg_tab$perc[prereg_tab$perc == 0] <- 0.2
   scale_y_discrete(expand=expand_scale(add = c(10, 10))) +
   scale_fill_manual(values = rev(c("grey80", "#FED976", "#90c916", "green4")), breaks=rev(c("Not Applicable", "Not preregistered", "Pre- registration", "Registered Report")), guide=FALSE) +
   geom_text(aes(label = paste0(gsub(" ", "\n", Var1), ":\nn=", Freq, "\n(", round(perc), "%)")), position = position_stack(vjust = 0.5), size=6) +
-  theme_singlebar() + coord_flip()
+  RESQUER:::theme_singlebar() + coord_flip()
 
 ```
 
@@ -548,7 +548,7 @@ repl_tab <- table(pubs$replication) |> as.data.frame() %>%
   scale_y_discrete(expand=expand_scale(add = c(10, 10))) +
   scale_fill_manual(values = rev(c("#FED976", "#90c916", "grey80")), breaks=rev(c("No", "Yes", "not applicable")), guide=FALSE) +
   geom_text(aes(label = paste0(gsub(" ", "\n", Var1), ":\nn=", Freq, "\n(", round(perc), "%)")), position = position_stack(vjust = 0.5), size=6) +
-  theme_singlebar() + coord_flip()
+  RESQUER:::theme_singlebar() + coord_flip()
  
 }
 ```
