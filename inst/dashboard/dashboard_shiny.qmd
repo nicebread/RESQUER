@@ -485,7 +485,7 @@ plotOutput('credit_wordcloud')
 
 
 
-# Impact {orientation="columns"}
+# Scientific Impact {orientation="columns"}
 
 ## Column1 HI-Papers {width=30%}
 
