@@ -18,3 +18,4 @@ library(quarto)
 quarto_serve(system.file("dashboard/dashboard_shiny.qmd", package="RESQUER"))
 ```
 
+
