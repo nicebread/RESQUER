@@ -18,17 +18,17 @@ Imports:
   plotly,
   curl,
   magrittr,
-  openalexR,
+  openalexR (>= 1.3.0),
   scales,
   tibble,
-  lubridate
+  lubridate,
+  OAmetrics (>= 0.3.1)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Suggests: 
     knitr,
     rmarkdown,
     forcats,
-    wordcloud,
-    OAmetrics (>= 0.3.1)
+    wordcloud
 VignetteBuilder: knitr
 URL: https://nicebread.github.io/RESQUER/

@@ -4,6 +4,7 @@
 #' Needs an internet connection to query the BIP! API.
 #'
 #' @param applicant The applicant data to be preprocessed (as loaded with the `read_RESQUE` function).
+#' @param verbose Show diagnostic information?
 #'
 #' @return Preprocessed applicant data.
 #'
@@ -15,10 +16,12 @@
 #' @importFrom openalexR oa_fetch
 #' @importFrom utils URLencode
 #' @importFrom lubridate year
+#' @importFrom OAmetrics normalize_dois
 #' @export
 
 # applicant <- read_RESQUE(system.file("extdata", "resque_Schönbrodt.json", package="RESQUER"))
-preprocess <- function(applicant) {
+#applicant <- read_RESQUE("/Users/felix/LMU/Research/1 - In Arbeit/RESQUE/RESQUE-Clinical/raw_data/resque_behrens_CH.json")
+preprocess <- function(applicant, verbose=FALSE) {
 
   # create missing indicator variables
   ind_vars <- c("P_PreregisteredReplication")
@@ -40,6 +43,10 @@ preprocess <- function(applicant) {
   }
   applicant$meta$AcademicAge <- year(Sys.Date()) - applicant$meta$YearPhD - applicant$meta$AcademicAgeBonus
 
+  # normalize some variables
+  applicant$meta$LastName <- str_trim(applicant$meta$LastName)
+  applicant$meta$ORCID <- normalize_ORCIDs(applicant$meta$ORCID)
+
   # Split the research outputs into types, reduce to suitable submissions
   applicant$pubs <- applicant$indicators %>% filter(type == "Publication", P_Suitable == "Yes")
 
@@ -53,13 +60,7 @@ preprocess <- function(applicant) {
 
 
   # clean the dois:
-  dois <- applicant$indicators$doi
-  dois <- dois %>%
-    str_replace_all("doi: ", "") %>%
-    str_replace_all(" ", "") %>%
-    str_trim()
-
-  applicant$indicators$doi_links <- paste0("https://doi.org/", dois)
+  applicant$indicators$doi_links <- normalize_dois(applicant$indicators$DOI)
   applicant$indicators$doi_links_md <- paste0("[", applicant$indicators$doi_links, "](", applicant$indicators$doi_links, ")")
 
   applicant$indicators$title_links_html <- paste0("<a href='", applicant$indicators$doi_links, "'>", applicant$indicators$Title, "</a>")
@@ -138,9 +139,10 @@ preprocess <- function(applicant) {
   # Call BIP! API for impact measures
   #----------------------------------------------------------------
 
-  applicant$BIP <- get_BIP(applicant$indicators$dois_normalized)
+  applicant$BIP <- get_BIP(applicant$indicators$dois_normalized, verbose=verbose)
   applicant$BIP_n_papers <- sum(applicant$BIP$pop_class <= "C5", na.rm=TRUE)
   applicant$BIP_n_papers_top10 <- sum(applicant$BIP$pop_class <= "C4", na.rm=TRUE)
+
 
   #----------------------------------------------------------------
   # Retrieve submitted works from OpenAlex
@@ -148,7 +150,7 @@ preprocess <- function(applicant) {
 
   all_pubs <- applicant$indicators[applicant$indicators$type == "Publication", ]
 
-  all_papers <- oa_fetch(entity = "works", doi = all_pubs$doi_links)
+  all_papers <- oa_fetch(entity = "works", doi = normalize_dois(all_pubs$doi_links))
 
   #cat(paste0(nrow(all_papers), " out of ", nrow(all_pubs), " submitted publications could be automatically retrieved with openAlex.\n"))
 
