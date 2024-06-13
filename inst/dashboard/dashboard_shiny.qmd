@@ -58,7 +58,7 @@ library(OAmetrics)
   version_df <- data.frame()
   for (i in 1:length(json_files)) {
     print(paste0("Preprocessing candidate ", i, "/", length(json_files)))
-    R <- read_RESQUE(file=json_files[i])
+    R <- read_RESQUE(file=json_files[i], verbose=FALSE)
     applicant_list[[i]] <- preprocess(applicant=R)
     applicant_names[i] <- applicant_list[[i]]$meta$FullName
 

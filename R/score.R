@@ -46,7 +46,7 @@ get_pack_name <- function(research_output) {
 # Internal function: Get the scoring information for a pack
 get_scoring_information <- function(research_output) {
   get_json_object(paste0(
-    "https://raw.githubusercontent.com/nicebread/RESQUE/main/packs/",
+    "https://raw.githubusercontent.com/RESQUE-framework/website/main/packs/",
     get_pack_name(research_output),
     ".json"
   ))$scoring
@@ -102,7 +102,7 @@ evaluate_condition_in_context <- function(condition, context) {
 #' @export
 score <- function(research_output, verbose = FALSE) {
   # for debugging:
-  # research_output <- research_outputs[[2]]
+  # research_output <- research_outputs[[1]]
 
   # load the scoring information from the current pack on github:
   scoring <- get_scoring_information(research_output)

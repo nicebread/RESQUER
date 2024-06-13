@@ -16,7 +16,7 @@
 #' @importFrom openalexR oa_fetch
 #' @importFrom utils URLencode
 #' @importFrom lubridate year
-#' @importFrom OAmetrics normalize_dois
+#' @importFrom OAmetrics normalize_dois normalize_ORCIDs
 #' @export
 
 # applicant <- read_RESQUE(system.file("extdata", "resque_Schönbrodt.json", package="RESQUER"))

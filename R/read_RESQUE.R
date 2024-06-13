@@ -3,11 +3,12 @@
 #' Read and preprocess a single RESQUE JSON file
 #'
 #' @param file Path to RESQUE JSON file
+#' @param verbose Show diagnostic information?
 #' @import dplyr
 #' @import stringr
 #' @import tidyr
 #' @export
-read_RESQUE <- function(file) {
+read_RESQUE <- function(file, verbose=FALSE) {
   dat0 <- read_json(file, simplifyVector = TRUE)
 
   meta <- dat0[1, 1:16]
@@ -22,7 +23,7 @@ read_RESQUE <- function(file) {
   dat$queryConfig <- NULL
 
   # read the scores
-  scores <- score_all_from_file(file=file)
+  scores <- score_all_from_file(file=file, verbose=verbose)
 
   # remove the first element: This is the meta-information which has no scores
   # Now each list entry is one publication, in the same order as in `dat`

@@ -4,10 +4,12 @@
 \alias{preprocess}
 \title{Preprocess and enrich the raw information from an applicant's JSON}
 \usage{
-preprocess(applicant)
+preprocess(applicant, verbose = FALSE)
 }
 \arguments{
 \item{applicant}{The applicant data to be preprocessed (as loaded with the \code{read_RESQUE} function).}
+
+\item{verbose}{Show diagnostic information?}
 }
 \value{
 Preprocessed applicant data.
